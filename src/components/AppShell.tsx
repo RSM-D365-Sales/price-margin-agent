@@ -38,8 +38,6 @@ export function AppShell() {
           Guards margin across
           <br />
           D2C &amp; wholesale pricing
-          <br />
-          <span className="mode">Mock data · D365 ready</span>
         </div>
       </nav>
 
