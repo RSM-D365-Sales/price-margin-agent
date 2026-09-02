@@ -1,4 +1,8 @@
-// ── formatting helpers (mirrors lib/format.ts in the Consignment app) ──
+// ── formatting helpers ────────────────────────────────────────
+// Date helpers resolve against AS_OF, never the wall clock, so the demo
+// looks identical whenever it is shown.
+
+import { AS_OF, iso } from './config'
 
 export function money(n: number, opts: { decimals?: number } = {}): string {
   const { decimals = 2 } = opts
@@ -22,17 +26,20 @@ export function num(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-export function shortDate(iso: string): string {
-  const d = new Date(iso + (iso.length === 10 ? 'T00:00:00' : ''))
+export function shortDate(value: string): string {
+  const d = new Date(value + (value.length === 10 ? 'T00:00:00' : ''))
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** The demo's "today". */
 export function isoToday(): string {
-  return new Date().toISOString().slice(0, 10)
+  return AS_OF
 }
 
 export function isoDaysAgo(days: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  return d.toISOString().slice(0, 10)
+  return iso(-days)
+}
+
+export function isoDaysAhead(days: number): string {
+  return iso(days)
 }

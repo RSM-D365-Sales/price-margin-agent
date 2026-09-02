@@ -15,28 +15,28 @@ export function PriceHistory() {
 
   const [productKey, setProductKey] = useState(`${products[0].itemNumber}|${products[0].colorSize}`)
 
-  const customers = useMemo(
+  const scopes = useMemo(
     () =>
       PRICE_HISTORY.filter((r) => `${r.itemNumber}|${r.colorSize}` === productKey).map((r) => ({
-        account: r.customerAccount,
-        name: r.customerName,
+        id: r.scopeId,
+        name: r.scopeName,
       })),
     [productKey],
   )
 
-  const [customer, setCustomer] = useState(customers[0]?.account ?? 'D2C')
+  const [scope, setScope] = useState(scopes[0]?.id ?? 'RETAIL')
 
   const record = useMemo(() => {
     const match = PRICE_HISTORY.find(
-      (r) => `${r.itemNumber}|${r.colorSize}` === productKey && r.customerAccount === customer,
+      (r) => `${r.itemNumber}|${r.colorSize}` === productKey && r.scopeId === scope,
     )
     return match ?? PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.colorSize}` === productKey) ?? null
-  }, [productKey, customer])
+  }, [productKey, scope])
 
   function onProductChange(key: string) {
     setProductKey(key)
     const first = PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.colorSize}` === key)
-    if (first) setCustomer(first.customerAccount)
+    if (first) setScope(first.scopeId)
   }
 
   const stats = useMemo(() => {
@@ -59,9 +59,10 @@ export function PriceHistory() {
         <div className="eyebrow">Audit report · Price history</div>
         <h1>Price History</h1>
         <p className="lede">
-          Pick a specific product (size / color) and customer to see every price change — who
-          changed it, why, and the date range each price was active for. Direct (D2C) list price
-          and customer-specific wholesale agreements are both tracked.
+          Pick a product (size / color) and a price scope to see every price change — who changed
+          it, why, and the window each price was live for. A scope is whatever the price is set
+          against: the retail list price, a single channel, one store, or a vendor program&rsquo;s
+          MAP schedule.
         </p>
       </header>
 
@@ -70,7 +71,7 @@ export function PriceHistory() {
           <label>Product · size / color</label>
           <select
             className="select"
-            style={{ minWidth: 320 }}
+            style={{ minWidth: 340 }}
             value={productKey}
             onChange={(e) => onProductChange(e.target.value)}
           >
@@ -82,21 +83,26 @@ export function PriceHistory() {
           </select>
         </div>
         <div className="field">
-          <label>Customer</label>
+          <label>Price scope</label>
           <select
             className="select"
-            style={{ minWidth: 260 }}
-            value={customer}
-            onChange={(e) => setCustomer(e.target.value)}
+            style={{ minWidth: 280 }}
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
           >
-            {customers.map((c) => (
-              <option key={c.account} value={c.account}>
-                {c.name}
-                {c.account !== 'D2C' ? ` · ${c.account}` : ''}
+            {scopes.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </select>
         </div>
+        {scopes.length > 1 && (
+          <>
+            <div className="spacer" />
+            <span className="pill ocean">{scopes.length} scopes on this product</span>
+          </>
+        )}
       </div>
 
       {record && stats && (
@@ -104,7 +110,10 @@ export function PriceHistory() {
           <div className="kpi-strip">
             <Kpi label="Current price" value={money(stats.current)} sub="active today" />
             <Kpi label="Price changes" value={String(stats.changes)} sub="since introduction" />
-            <Kpi label="Highest / lowest" value={`${money(stats.high, { decimals: 0 })} / ${money(stats.low, { decimals: 0 })}`} />
+            <Kpi
+              label="Highest / lowest"
+              value={`${money(stats.high, { decimals: 0 })} / ${money(stats.low, { decimals: 0 })}`}
+            />
             <Kpi
               label="Drift since intro"
               value={pct(stats.driftPct)}
@@ -112,12 +121,17 @@ export function PriceHistory() {
             />
           </div>
 
-          <div className="card" style={{ padding: '26px 30px' }}>
-            <div className="section-head" style={{ marginBottom: 20 }}>
+          <div className="card" style={{ padding: '20px 24px' }}>
+            <div className="section-head" style={{ marginBottom: 18 }}>
               <h2>
                 {record.styleName} · {record.colorSize}
               </h2>
-              <span className="pill camel">{record.customerName}</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span className={`pill ${record.productLine === 'Own label' ? 'sand' : 'navy'}`}>
+                  {record.productLine}
+                </span>
+                <span className="pill ocean">{record.scopeName}</span>
+              </div>
             </div>
             <div className="history-track">
               {record.entries.map((e, i) => {
@@ -131,12 +145,12 @@ export function PriceHistory() {
                     <div className="entry">
                       <div className="price-line">
                         <span className="price">{money(e.price)}</span>
-                        {delta !== null && (
+                        {delta !== null && delta !== 0 && (
                           <span className={`delta ${delta >= 0 ? 'up' : 'down'}`}>
                             {delta >= 0 ? '▲' : '▼'} {pct(Math.abs(delta))}
                           </span>
                         )}
-                        {e.activeTo === null && <span className="pill sage">Current</span>}
+                        {e.activeTo === null && <span className="pill good">Current</span>}
                         <span className="pill">{e.changeType}</span>
                       </div>
                       <div className="meta">

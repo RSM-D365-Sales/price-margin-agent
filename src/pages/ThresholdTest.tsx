@@ -2,12 +2,17 @@ import { useMemo, useState } from 'react'
 import { PRICING_SETUP, CATEGORIES } from '../data/mockData'
 import {
   lineMarginPct,
+  lineUnfundedMarginPct,
   lineSalesPrice,
+  lineEffectiveCost,
+  lineBelowMap,
+  lineBreachesMap,
   type PricingSetupLine,
   type PricingMode,
   type PriceComponentTarget,
 } from '../models/types'
 import { money, pct, num, shortDate, isoToday } from '../lib/format'
+import { AS_OF, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/useToast'
@@ -19,15 +24,15 @@ const COMPONENT_LABELS: Record<PriceComponentTarget, string> = {
 }
 
 export function ThresholdTest() {
-  // test inputs
-  const [fromDate, setFromDate] = useState('2026-07-01')
-  const [toDate, setToDate] = useState('2026-07-31')
-  const [marginTarget, setMarginTarget] = useState(50)
+  // test inputs — the window is anchored to the demo's as-of date
+  const [fromDate, setFromDate] = useState(iso(-14))
+  const [toDate, setToDate] = useState(iso(30))
+  const [marginTarget, setMarginTarget] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
   const [category, setCategory] = useState<string>('All')
-  const [mode, setMode] = useState<PricingMode>('D2C')
+  const [mode, setMode] = useState<PricingMode>('Retail')
   const [hasRun, setHasRun] = useState(true)
 
-  // editable quantities + repriced lines are local overlays on the mock setup
+  // editable quantities + repriced lines are local overlays on the dataset
   const [lines, setLines] = useState<PricingSetupLine[]>(PRICING_SETUP)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [discountDetail, setDiscountDetail] = useState<PricingSetupLine | null>(null)
@@ -36,49 +41,37 @@ export function ThresholdTest() {
 
   // reprice inputs
   const [repriceComponent, setRepriceComponent] = useState<PriceComponentTarget>('discountPct')
-  const [repriceTargetMargin, setRepriceTargetMargin] = useState(50)
+  const [repriceTargetMargin, setRepriceTargetMargin] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
   const [repriceFrom, setRepriceFrom] = useState(isoToday())
   const [repriceTo, setRepriceTo] = useState('')
   const [noEndDate, setNoEndDate] = useState(true)
+  const [respectMap, setRespectMap] = useState(true)
+
+  /** Lines matching everything except the mode — used for both tab counts. */
+  const matching = useMemo(
+    () =>
+      lines
+        .filter((l) => (category === 'All' ? true : l.category === category))
+        .filter((l) => l.validFrom <= toDate && l.validTo >= fromDate)
+        .filter((l) => lineMarginPct(l) <= marginTarget),
+    [lines, category, fromDate, toDate, marginTarget],
+  )
 
   const results = useMemo(() => {
     if (!hasRun) return []
-    return lines
+    return matching
       .filter((l) => l.mode === mode)
-      .filter((l) => (category === 'All' ? true : l.category === category))
-      // active pricing overlapping the test window
-      .filter((l) => l.validFrom <= toDate && l.validTo >= fromDate)
-      // at or below the margin target
-      .filter((l) => lineMarginPct(l) <= marginTarget)
       .sort((a, b) => lineMarginPct(a) - lineMarginPct(b))
-  }, [lines, mode, category, fromDate, toDate, marginTarget, hasRun])
+  }, [matching, mode, hasRun])
 
-  const d2cCount = useMemo(
-    () =>
-      lines.filter(
-        (l) =>
-          l.mode === 'D2C' &&
-          (category === 'All' || l.category === category) &&
-          l.validFrom <= toDate &&
-          l.validTo >= fromDate &&
-          lineMarginPct(l) <= marginTarget,
-      ).length,
-    [lines, category, fromDate, toDate, marginTarget],
-  )
-  const b2bCount = useMemo(
-    () =>
-      lines.filter(
-        (l) =>
-          l.mode === 'B2B' &&
-          (category === 'All' || l.category === category) &&
-          l.validFrom <= toDate &&
-          l.validTo >= fromDate &&
-          lineMarginPct(l) <= marginTarget,
-      ).length,
-    [lines, category, fromDate, toDate, marginTarget],
-  )
-
+  const retailCount = matching.filter((l) => l.mode === 'Retail').length
+  const vendorCount = matching.filter((l) => l.mode === 'Vendor').length
   const worstMargin = results.length ? lineMarginPct(results[0]) : null
+
+  // MAP breaches are evaluated across the whole book, not just the failing set —
+  // a line can sit above the margin target and still be out of compliance.
+  const breaches = useMemo(() => lines.filter((l) => lineBreachesMap(l, AS_OF)), [lines])
+  const breachesInMode = breaches.filter((l) => l.mode === mode)
 
   function setQty(id: string, qty: number) {
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, quantity: Math.max(1, qty) } : l)))
@@ -87,31 +80,37 @@ export function ThresholdTest() {
   function toggle(id: string) {
     setSelected((s) => {
       const n = new Set(s)
-      n.has(id) ? n.delete(id) : n.add(id)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
       return n
     })
   }
 
   function toggleAll() {
-    setSelected((s) =>
-      s.size === results.length ? new Set() : new Set(results.map((r) => r.id)),
-    )
+    setSelected((s) => (s.size === results.length ? new Set() : new Set(results.map((r) => r.id))))
   }
 
-  // Solve the chosen component so the line reaches the target margin %.
-  // salesPrice = (base + marginComp) * (1 - disc) + autoCharge
-  // target: (salesPrice - cost) / salesPrice = m  →  salesPrice = cost / (1 - m)
+  /**
+   * Solve the chosen component so the line reaches the target margin.
+   *   salesPrice = (base + marginComp) * (1 - disc) + autoCharge
+   *   target:  (salesPrice - effectiveCost) / salesPrice = m
+   *        →   salesPrice = effectiveCost / (1 - m)
+   * Effective cost is net of any vendor allowance, so a co-funded line needs a
+   * smaller price move than an unfunded one. When "hold at or above MAP" is on,
+   * the solved price is floored at the vendor's minimum advertised price.
+   */
   function repriceLine(l: PricingSetupLine): PricingSetupLine {
     const m = repriceTargetMargin / 100
-    const targetSales = l.unitCost / (1 - m)
-    const next = { ...l, validFrom: repriceFrom, validTo: noEndDate ? '2099-12-31' : repriceTo }
+    let targetSales = lineEffectiveCost(l) / (1 - m)
+    if (respectMap && l.mapFloor !== undefined) targetSales = Math.max(targetSales, l.mapFloor)
+
+    const next = { ...l, validFrom: repriceFrom, validTo: noEndDate ? iso(3650) : repriceTo }
     if (repriceComponent === 'discountPct') {
       const gross = l.basePrice + l.marginComponent
       const disc = gross > 0 ? Math.max(0, (1 - (targetSales - l.autoCharge) / gross) * 100) : 0
       next.discountPct = Math.round(disc * 10) / 10
     } else if (repriceComponent === 'basePrice') {
-      const base =
-        (targetSales - l.autoCharge) / (1 - l.discountPct / 100) - l.marginComponent
+      const base = (targetSales - l.autoCharge) / (1 - l.discountPct / 100) - l.marginComponent
       next.basePrice = Math.round(base * 100) / 100
     } else {
       const comp = (targetSales - l.autoCharge) / (1 - l.discountPct / 100) - l.basePrice
@@ -120,18 +119,19 @@ export function ThresholdTest() {
     return next
   }
 
+  const repriceIds = selected.size ? selected : new Set(results.map((r) => r.id))
+  const repricePreview = results.filter((r) => repriceIds.has(r.id)).slice(0, 5)
+
   function executeReprice() {
-    const ids = selected.size ? selected : new Set(results.map((r) => r.id))
-    setLines((ls) => ls.map((l) => (ids.has(l.id) ? repriceLine(l) : l)))
+    setLines((ls) => ls.map((l) => (repriceIds.has(l.id) ? repriceLine(l) : l)))
     setRepriceOpen(false)
     setSelected(new Set())
     showToast(
-      `New prices executed for ${ids.size} line${ids.size === 1 ? '' : 's'} · ${COMPONENT_LABELS[repriceComponent]} adjusted to reach ${repriceTargetMargin}% margin`,
+      `New prices executed for ${repriceIds.size} line${repriceIds.size === 1 ? '' : 's'} · ` +
+        `${COMPONENT_LABELS[repriceComponent]} solved to reach ${repriceTargetMargin}% margin` +
+        (respectMap ? ', held at or above MAP' : ''),
     )
   }
-
-  const repriceIds = selected.size ? selected : new Set(results.map((r) => r.id))
-  const repricePreview = results.filter((r) => repriceIds.has(r.id)).slice(0, 5)
 
   return (
     <>
@@ -139,10 +139,10 @@ export function ThresholdTest() {
         <div className="eyebrow">Discount thresholds &amp; approval requirements</div>
         <h1>Margin Threshold Test</h1>
         <p className="lede">
-          The price simulator lets you test manually — this agent finds <em>all</em> pricing setup
-          at or below a margin % across a date range: ecommerce and retail store pricing for D2C,
-          and customer / customer-group agreements for B2B. Select lines and let the agent draft a
-          new price.
+          A price simulator tests one line at a time. This finds <em>all</em> pricing setup at or
+          below a margin % across a date range — ecommerce and store pricing on the retail side,
+          brand programs with their MAP floors and co-op funding on the vendor side. Select lines
+          and let the agent draft a new price.
         </p>
       </header>
 
@@ -203,18 +203,53 @@ export function ThresholdTest() {
           label="Worst margin found"
           value={worstMargin === null ? '—' : pct(worstMargin)}
           tone={worstMargin !== null && worstMargin < 30 ? 'red' : 'default'}
-          sub={results.length ? `${results[0].styleName}` : 'no failures'}
+          sub={results.length ? results[0].styleName : 'no failures'}
         />
-        <Kpi label="D2C failures" value={num(d2cCount)} sub="ecommerce + retail store" />
-        <Kpi label="B2B failures" value={num(b2bCount)} sub="wholesale customers & groups" />
+        <Kpi label="Retail failures" value={num(retailCount)} sub="ecommerce + store" />
+        <Kpi label="Vendor failures" value={num(vendorCount)} sub="brand programs" />
+        <Kpi
+          label="MAP breaches"
+          value={num(breaches.length)}
+          tone={breaches.length ? 'red' : 'sage'}
+          sub="whole book, no active waiver"
+        />
       </div>
 
+      {breachesInMode.length > 0 && (
+        <div className="callout critical">
+          <span className="callout-glyph" aria-hidden="true">
+            ⚠
+          </span>
+          <span>
+            <b>
+              {breachesInMode.length} {mode.toLowerCase()} line
+              {breachesInMode.length === 1 ? '' : 's'} price below a vendor MAP floor with no active
+              waiver:
+            </b>{' '}
+            {breachesInMode
+              .map(
+                (l) =>
+                  `${l.itemNumber} at ${money(lineSalesPrice(l))} against a ${money(l.mapFloor!)} floor` +
+                  (l.mapWaiverUntil ? ` (waiver expired ${shortDate(l.mapWaiverUntil)})` : ' (no waiver on file)'),
+              )
+              .join(' · ')}
+            . Repricing with <em>hold at or above MAP</em> enabled clears this.
+          </span>
+        </div>
+      )}
+
       <div className="tab-row">
-        <button className={`tab${mode === 'D2C' ? ' active' : ''}`} onClick={() => setMode('D2C')}>
-          D2C · Ecommerce &amp; Retail<span className="count">{d2cCount}</span>
+        <button
+          className={`tab${mode === 'Retail' ? ' active' : ''}`}
+          onClick={() => setMode('Retail')}
+        >
+          Retail · Ecommerce &amp; Stores<span className="count">{retailCount}</span>
         </button>
-        <button className={`tab${mode === 'B2B' ? ' active' : ''}`} onClick={() => setMode('B2B')}>
-          B2B · Wholesale<span className="count">{b2bCount}</span>
+        <button
+          className={`tab${mode === 'Vendor' ? ' active' : ''}`}
+          onClick={() => setMode('Vendor')}
+        >
+          Vendor · Brand Programs<span className="count">{vendorCount}</span>
         </button>
       </div>
 
@@ -227,26 +262,30 @@ export function ThresholdTest() {
                   type="checkbox"
                   checked={results.length > 0 && selected.size === results.length}
                   onChange={toggleAll}
+                  aria-label="Select all rows"
                 />
               </th>
-              <th>Style description</th>
+              <th>Product</th>
               <th>Item</th>
               <th>Category</th>
               <th>Color / Size</th>
-              {mode === 'B2B' && <th>Customer / Group</th>}
-              {mode === 'D2C' && <th>Channel</th>}
+              {mode === 'Vendor' ? <th>Brand / Program</th> : <th>Channel</th>}
               <th className="num">Qty</th>
               <th className="num">Base price (TA)</th>
               <th className="num">Margin comp.</th>
               <th className="num">Discount</th>
               <th className="num">Auto charge</th>
               <th className="num">Sales price</th>
+              <th className="num">MAP floor</th>
               <th className="num">Margin %</th>
             </tr>
           </thead>
           <tbody>
             {results.map((l) => {
               const m = lineMarginPct(l)
+              const belowMap = lineBelowMap(l)
+              const breach = lineBreachesMap(l, AS_OF)
+              const funded = (l.vendorAllowancePct ?? 0) > 0
               return (
                 <tr key={l.id} className={selected.has(l.id) ? 'row-selected' : undefined}>
                   <td>
@@ -254,35 +293,26 @@ export function ThresholdTest() {
                       type="checkbox"
                       checked={selected.has(l.id)}
                       onChange={() => toggle(l.id)}
+                      aria-label={`Select ${l.styleName}`}
                     />
                   </td>
                   <td className="style-cell">
                     <div className="style-name">{l.styleName}</div>
                     <div className="style-sub">
-                      Valid {shortDate(l.validFrom)} – {shortDate(l.validTo)}
+                      {l.productLine} · valid {shortDate(l.validFrom)} – {shortDate(l.validTo)}
                     </div>
                   </td>
-                  <td>{l.itemNumber}</td>
+                  <td className="item-code">{l.itemNumber}</td>
                   <td>{l.category}</td>
                   <td>{l.colorSize}</td>
-                  {mode === 'B2B' && (
+                  {mode === 'Vendor' ? (
                     <td>
-                      {l.customerAccount ? (
-                        <>
-                          <div>{l.channelDetail}</div>
-                          <div className="style-sub">
-                            {l.customerAccount} · {l.customerGroup}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div>{l.customerGroup}</div>
-                          <div className="style-sub">customer price group</div>
-                        </>
-                      )}
+                      <div>{l.channelDetail}</div>
+                      <div className="style-sub">
+                        {l.vendorAccount} · {l.vendorProgram}
+                      </div>
                     </td>
-                  )}
-                  {mode === 'D2C' && (
+                  ) : (
                     <td>
                       <div>{l.channel}</div>
                       <div className="style-sub">{l.channelDetail}</div>
@@ -295,6 +325,7 @@ export function ThresholdTest() {
                       value={l.quantity}
                       min={1}
                       onChange={(e) => setQty(l.id, Number(e.target.value))}
+                      aria-label={`Quantity for ${l.itemNumber}`}
                     />
                   </td>
                   <td className="num">{money(l.basePrice)}</td>
@@ -302,7 +333,8 @@ export function ThresholdTest() {
                   <td className="num">
                     {l.discountPct === 0 ? (
                       '—'
-                    ) : l.discount && (l.discount.type === 'Threshold' || l.discount.type === 'Quantity') ? (
+                    ) : l.discount &&
+                      (l.discount.type === 'Threshold' || l.discount.type === 'Quantity') ? (
                       <button className="link-btn" onClick={() => setDiscountDetail(l)}>
                         {pct(l.discountPct, 0)} ▸
                       </button>
@@ -312,20 +344,39 @@ export function ThresholdTest() {
                   </td>
                   <td className="num">{l.autoCharge === 0 ? '—' : money(l.autoCharge)}</td>
                   <td className="num">{money(lineSalesPrice(l))}</td>
+                  <td className="num">
+                    {l.mapFloor === undefined ? (
+                      <span style={{ color: 'var(--ink-300)' }}>—</span>
+                    ) : breach ? (
+                      <span className="map-breach">
+                        {money(l.mapFloor)}
+                        <div style={{ fontSize: 11 }}>breach</div>
+                      </span>
+                    ) : belowMap ? (
+                      <span style={{ color: 'var(--warning-text)' }}>
+                        {money(l.mapFloor)}
+                        <div style={{ fontSize: 11 }}>waived</div>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--ink-500)' }}>{money(l.mapFloor)}</span>
+                    )}
+                  </td>
                   <td className={`num ${m <= marginTarget ? 'margin-red' : 'margin-ok'}`}>
                     {pct(m)}
+                    {funded && (
+                      <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--ink-400)' }}>
+                        {pct(lineUnfundedMarginPct(l))} unfunded
+                      </div>
+                    )}
                   </td>
                 </tr>
               )
             })}
             {results.length === 0 && (
               <tr>
-                <td
-                  colSpan={mode === 'B2B' ? 14 : 14}
-                  style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 32 }}
-                >
-                  No {mode} pricing at or below {marginTarget}% margin for this window — the setup
-                  passes the test.
+                <td colSpan={14} style={{ textAlign: 'center', color: 'var(--ink-400)', padding: 32 }}>
+                  No {mode.toLowerCase()} pricing at or below {marginTarget}% margin for this window
+                  — the setup passes the test.
                 </td>
               </tr>
             )}
@@ -338,13 +389,13 @@ export function ThresholdTest() {
           <span className="count">
             {selected.size || 'All'} line{(selected.size || results.length) === 1 ? '' : 's'}
           </span>
-          <span style={{ fontSize: 12, letterSpacing: '0.08em', opacity: 0.75 }}>
+          <span style={{ fontSize: 12.5, opacity: 0.8 }}>
             {selected.size
               ? 'selected for reprice'
               : `displayed — reprice applies to all ${results.length}`}
           </span>
           <div className="spacer" />
-          <button className="btn camel" onClick={() => setRepriceOpen(true)}>
+          <button className="btn gold" onClick={() => setRepriceOpen(true)}>
             Draft new price →
           </button>
         </div>
@@ -365,6 +416,16 @@ export function ThresholdTest() {
             <dd>
               {num(discountDetail.quantity)} → effective {pct(discountDetail.discountPct, 0)} off
             </dd>
+            {discountDetail.vendorAllowancePct !== undefined && (
+              <>
+                <dt>Vendor funding</dt>
+                <dd>
+                  {discountDetail.vendorAllowancePct}% of cost — margin reads{' '}
+                  {pct(lineMarginPct(discountDetail))} funded,{' '}
+                  {pct(lineUnfundedMarginPct(discountDetail))} unfunded
+                </dd>
+              </>
+            )}
           </dl>
           {discountDetail.discount.tiers && (
             <table className="tier-table">
@@ -390,20 +451,20 @@ export function ThresholdTest() {
       {repriceOpen && (
         <Modal
           title="Draft new price"
-          sub={`The agent solves the chosen component so each line reaches the target margin. ${mode === 'B2B' ? 'B2B lines route through trade-agreement journal approval.' : ''}`}
+          sub={`The agent solves the chosen component so each line reaches the target margin, measured against cost net of any vendor allowance.${mode === 'Vendor' ? ' Vendor lines route through trade-agreement journal approval.' : ''}`}
           onClose={() => setRepriceOpen(false)}
           actions={
             <>
               <button className="btn ghost" onClick={() => setRepriceOpen(false)}>
                 Cancel
               </button>
-              <button className="btn camel" onClick={executeReprice}>
+              <button className="btn gold" onClick={executeReprice}>
                 Confirm &amp; execute new price
               </button>
             </>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="field">
               <label>Items to update</label>
               <div style={{ fontSize: 13 }}>
@@ -436,7 +497,15 @@ export function ThresholdTest() {
                 onChange={(e) => setRepriceTargetMargin(Number(e.target.value))}
               />
             </div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={respectMap}
+                onChange={(e) => setRespectMap(e.target.checked)}
+              />
+              Hold at or above the vendor MAP floor
+            </label>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div className="field">
                 <label>Effective from</label>
                 <input
@@ -456,7 +525,15 @@ export function ThresholdTest() {
                   onChange={(e) => setRepriceTo(e.target.value)}
                 />
               </div>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, paddingBottom: 9 }}>
+              <label
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                  fontSize: 13,
+                  paddingBottom: 8,
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={noEndDate}
@@ -467,7 +544,7 @@ export function ThresholdTest() {
             </div>
 
             <div>
-              <div className="eyebrow" style={{ marginBottom: 8 }}>
+              <div className="eyebrow" style={{ marginBottom: 6 }}>
                 Preview
               </div>
               <table className="tier-table">
@@ -484,24 +561,24 @@ export function ThresholdTest() {
                     const next = repriceLine(l)
                     return (
                       <tr key={l.id}>
-                        <td>
+                        <td className="mono">
                           {l.itemNumber} · {l.colorSize}
                         </td>
-                        <td>
+                        <td className="num">
                           {money(lineSalesPrice(l))} ({pct(lineMarginPct(l))})
                         </td>
-                        <td>
+                        <td className="num">
                           {repriceComponent === 'discountPct'
                             ? pct(next.discountPct, 1)
                             : money(next[repriceComponent])}
                         </td>
-                        <td className="margin-ok">{pct(lineMarginPct(next))}</td>
+                        <td className="num margin-ok">{pct(lineMarginPct(next))}</td>
                       </tr>
                     )
                   })}
                   {repriceIds.size > repricePreview.length && (
                     <tr>
-                      <td colSpan={4} style={{ color: 'var(--ink-3)' }}>
+                      <td colSpan={4} style={{ color: 'var(--ink-400)' }}>
                         …and {repriceIds.size - repricePreview.length} more lines
                       </td>
                     </tr>

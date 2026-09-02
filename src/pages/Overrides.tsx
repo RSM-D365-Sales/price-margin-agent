@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { PRICE_OVERRIDES } from '../data/mockData'
-import { overrideMarginPct, type PriceOverride } from '../models/types'
+import { overrideMarginPct, overrideBreachesMap, type PriceOverride } from '../models/types'
 import { money, pct, num, shortDate, isoDaysAgo, isoToday } from '../lib/format'
+import { BRAND, DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/useToast'
@@ -9,10 +10,11 @@ import { useToast } from '../components/useToast'
 type ActionKind = 'email' | 'case'
 
 export function Overrides() {
-  // filters — default: last 90 days, margin at or below 50%
+  // filters — default: last 90 days, margin at or below the retail target
   const [fromDate, setFromDate] = useState(isoDaysAgo(90))
   const [toDate, setToDate] = useState(isoToday())
-  const [marginFilter, setMarginFilter] = useState(50)
+  const [marginFilter, setMarginFilter] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
+  const [mapOnly, setMapOnly] = useState(false)
   const [action, setAction] = useState<{ kind: ActionKind; row: PriceOverride } | null>(null)
   const [, showToast, toastNode] = useToast()
 
@@ -26,16 +28,18 @@ export function Overrides() {
     () =>
       inDateRange
         .filter((o) => overrideMarginPct(o) <= marginFilter)
+        .filter((o) => (mapOnly ? overrideBreachesMap(o) : true))
         .sort((a, b) => overrideMarginPct(a) - overrideMarginPct(b)),
-    [inDateRange, marginFilter],
+    [inDateRange, marginFilter, mapOnly],
   )
 
   const kpis = useMemo(() => {
     const margins = inDateRange.map(overrideMarginPct)
     const below = margins.filter((m) => m <= marginFilter).length
     const avg = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : 0
-    const marginGivenUp = inDateRange.reduce((s, o) => s + (o.originalPrice - o.overridePrice), 0)
-    return { total: inDateRange.length, below, avg, marginGivenUp }
+    const givenUp = inDateRange.reduce((s, o) => s + (o.originalPrice - o.overridePrice), 0)
+    const mapHits = inDateRange.filter(overrideBreachesMap).length
+    return { total: inDateRange.length, below, avg, givenUp, mapHits }
   }, [inDateRange, marginFilter])
 
   function completeAction() {
@@ -51,12 +55,12 @@ export function Overrides() {
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Audit trail · Pricing overrides</div>
+        <div className="eyebrow">Audit trail · Register price overrides</div>
         <h1>Override Audit</h1>
         <p className="lede">
-          Every sales order where a price was manually overridden. Filtered to margins at or below
-          your threshold, ranked lowest margin first. Follow up by emailing the user or raising a
-          case in D365.
+          Every order where a price was manually overridden at the register or on {BRAND.site}.
+          Filtered to margins at or below your threshold, ranked lowest margin first. Branded items
+          also show whether the override went under the vendor&rsquo;s minimum advertised price.
         </p>
       </header>
 
@@ -72,10 +76,16 @@ export function Overrides() {
           tone={kpis.below > 0 ? 'red' : 'sage'}
           sub="shown in the grid below"
         />
+        <Kpi
+          label="Below vendor MAP"
+          value={num(kpis.mapHits)}
+          tone={kpis.mapHits > 0 ? 'red' : 'sage'}
+          sub="branded items only"
+        />
         <Kpi label="Average override margin" value={pct(kpis.avg)} sub="across the date range" />
         <Kpi
-          label="Price reduction given up"
-          value={money(kpis.marginGivenUp, { decimals: 0 })}
+          label="Price given up"
+          value={money(kpis.givenUp, { decimals: 0 })}
           sub="original vs. override price"
         />
       </div>
@@ -111,21 +121,28 @@ export function Overrides() {
             onChange={(e) => setMarginFilter(Number(e.target.value))}
           />
         </div>
+        <label
+          style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingBottom: 8 }}
+        >
+          <input type="checkbox" checked={mapOnly} onChange={(e) => setMapOnly(e.target.checked)} />
+          MAP breaches only
+        </label>
         <div className="spacer" />
-        <span className="pill camel">{rows.length} lines match</span>
+        <span className="pill navy">{rows.length} lines match</span>
       </div>
 
       <div className="card table-wrap">
         <table className="data-table">
           <thead>
             <tr>
-              <th>Style description</th>
+              <th>Product</th>
               <th>Item</th>
               <th>Category</th>
               <th>Color / Size</th>
               <th className="num">Unit cost</th>
               <th className="num">Override price</th>
               <th className="num">Margin %</th>
+              <th className="num">Vendor MAP</th>
               <th>Reason code</th>
               <th>Overridden by</th>
               <th>Follow up</th>
@@ -135,15 +152,16 @@ export function Overrides() {
             {rows.map((o) => {
               const m = overrideMarginPct(o)
               const isRed = m <= marginFilter
+              const belowMap = overrideBreachesMap(o)
               return (
                 <tr key={o.id}>
                   <td className="style-cell">
                     <div className="style-name">{o.styleName}</div>
                     <div className="style-sub">
-                      {o.orderNumber} · {o.channel} · {shortDate(o.orderDate)}
+                      {o.orderNumber} · {o.storeOrSite} · {shortDate(o.orderDate)}
                     </div>
                   </td>
-                  <td>{o.itemNumber}</td>
+                  <td className="item-code">{o.itemNumber}</td>
                   <td>{o.category}</td>
                   <td>{o.colorSize}</td>
                   <td className="num">{money(o.unitCost)}</td>
@@ -154,6 +172,20 @@ export function Overrides() {
                     </div>
                   </td>
                   <td className={`num ${isRed ? 'margin-red' : 'margin-ok'}`}>{pct(m)}</td>
+                  <td className="num">
+                    {o.mapFloor === undefined ? (
+                      <span style={{ color: 'var(--ink-300)' }}>—</span>
+                    ) : belowMap ? (
+                      <span className="map-breach">
+                        {money(o.mapFloor)}
+                        <div style={{ fontSize: 11, fontWeight: 500 }}>
+                          −{money(o.mapFloor - o.overridePrice)} under
+                        </div>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--ink-500)' }}>{money(o.mapFloor)}</span>
+                    )}
+                  </td>
                   <td>
                     <span className="pill">{o.reasonCode}</span>
                   </td>
@@ -179,8 +211,9 @@ export function Overrides() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ textAlign: 'center', color: 'var(--ink-3)', padding: 32 }}>
-                  No overrides at or below {marginFilter}% margin in this date range.
+                <td colSpan={11} style={{ textAlign: 'center', color: 'var(--ink-400)', padding: 32 }}>
+                  No overrides at or below {marginFilter}% margin
+                  {mapOnly ? ' that also breach MAP' : ''} in this date range.
                 </td>
               </tr>
             )}
@@ -202,7 +235,7 @@ export function Overrides() {
               <button className="btn ghost" onClick={() => setAction(null)}>
                 Cancel
               </button>
-              <button className="btn camel" onClick={completeAction}>
+              <button className="btn gold" onClick={completeAction}>
                 {action.kind === 'email' ? 'Send email' : 'Create case'}
               </button>
             </>
@@ -223,6 +256,22 @@ export function Overrides() {
               {money(action.row.originalPrice)} → {money(action.row.overridePrice)} ·{' '}
               <span className="margin-red">{pct(overrideMarginPct(action.row))} margin</span>
             </dd>
+            {action.row.mapFloor !== undefined && (
+              <>
+                <dt>Vendor MAP</dt>
+                <dd>
+                  {money(action.row.mapFloor)}
+                  {overrideBreachesMap(action.row) ? (
+                    <span className="map-breach">
+                      {' '}
+                      · {money(action.row.mapFloor - action.row.overridePrice)} under the floor
+                    </span>
+                  ) : (
+                    ' · at or above the floor'
+                  )}
+                </dd>
+              </>
+            )}
             <dt>Reason</dt>
             <dd>{action.row.reasonCode}</dd>
             <dt>User</dt>
@@ -235,8 +284,15 @@ export function Overrides() {
               <label>Message</label>
               <textarea
                 className="input"
-                rows={5}
-                defaultValue={`Hi ${action.row.overriddenBy.split(' ')[0]},\n\nOn order ${action.row.orderNumber} the price of ${action.row.styleName} (${action.row.itemNumber}) was overridden to ${money(action.row.overridePrice)}, which lands at ${pct(overrideMarginPct(action.row))} margin. Could you add context to the "${action.row.reasonCode}" reason code?\n\nThanks,\nPricing team`}
+                rows={6}
+                defaultValue={
+                  `Hi ${action.row.overriddenBy.split(' ')[0]},\n\n` +
+                  `On order ${action.row.orderNumber} the price of ${action.row.styleName} (${action.row.itemNumber}) was overridden to ${money(action.row.overridePrice)}, which lands at ${pct(overrideMarginPct(action.row))} margin.` +
+                  (overrideBreachesMap(action.row)
+                    ? ` That is also ${money(action.row.mapFloor! - action.row.overridePrice)} below the ${money(action.row.mapFloor!)} minimum advertised price we are held to under the vendor program, so it needs to be logged.`
+                    : '') +
+                  `\n\nCould you add context to the "${action.row.reasonCode}" reason code?\n\nThanks,\nPricing team`
+                }
               />
             </div>
           ) : (
@@ -244,7 +300,11 @@ export function Overrides() {
               <label>Case title</label>
               <input
                 className="input"
-                defaultValue={`Price override review · ${action.row.orderNumber} · ${action.row.itemNumber}`}
+                defaultValue={
+                  overrideBreachesMap(action.row)
+                    ? `MAP breach review · ${action.row.orderNumber} · ${action.row.itemNumber}`
+                    : `Price override review · ${action.row.orderNumber} · ${action.row.itemNumber}`
+                }
               />
             </div>
           )}

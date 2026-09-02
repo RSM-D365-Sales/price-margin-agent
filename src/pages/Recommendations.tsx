@@ -1,20 +1,37 @@
 import { useMemo, useState } from 'react'
-import { RECOMMENDATIONS, D2C_KPIS, WHOLESALE_KPIS } from '../data/mockData'
+import { RECOMMENDATIONS, RETAIL_KPIS, VENDOR_KPIS } from '../data/mockData'
 import type { RecAudience, Recommendation } from '../models/types'
 import { Kpi } from '../components/Kpi'
 import { useToast } from '../components/useToast'
 
 const TREND_GLYPH = { up: '▲', down: '▼', flat: '—' } as const
 
+/**
+ * Sum the dollar figures the open cards actually claim, so the headline upside
+ * always ties out to what is on screen rather than being typed in separately.
+ */
+function upsideOf(recs: Recommendation[]): string {
+  let total = 0
+  let sawMoney = false
+  for (const r of recs) {
+    const m = r.impact?.match(/\$([\d.]+)K/)
+    if (m) {
+      total += parseFloat(m[1])
+      sawMoney = true
+    }
+  }
+  return sawMoney ? `+$${Math.round(total)}K` : '—'
+}
+
 export function Recommendations() {
-  const [audience, setAudience] = useState<RecAudience>('D2C')
+  const [audience, setAudience] = useState<RecAudience>('Retail')
   const [recs, setRecs] = useState<Recommendation[]>(RECOMMENDATIONS)
   const [, showToast, toastNode] = useToast()
 
   const shown = useMemo(() => recs.filter((r) => r.audience === audience), [recs, audience])
-  const open = shown.filter((r) => r.status === 'Open').length
+  const open = shown.filter((r) => r.status === 'Open')
   const accepted = recs.filter((r) => r.status === 'Accepted').length
-  const kpis = audience === 'D2C' ? D2C_KPIS : WHOLESALE_KPIS
+  const kpis = audience === 'Retail' ? RETAIL_KPIS : VENDOR_KPIS
 
   function setStatus(id: string, status: Recommendation['status']) {
     setRecs((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
@@ -31,47 +48,58 @@ export function Recommendations() {
         <div className="eyebrow">AI price &amp; discount guidance</div>
         <h1>Recommendations</h1>
         <p className="lede">
-          Objective: maximize gross margin while increasing full-price sell-through and reducing
-          unnecessary markdowns. The agent monitors the KPIs below and proposes pricing, markdown,
-          promotion, and contract moves — every action stays human-in-the-loop.
+          Objective: hold gross margin through the season change while keeping full-price
+          sell-through up and unnecessary markdowns down. The agent monitors the KPIs below and
+          proposes pricing, markdown, promotion, and vendor program moves — every action stays
+          human-in-the-loop.
         </p>
       </header>
 
       <div className="kpi-strip">
-        <Kpi label="Open recommendations" value={String(open)} sub={`${audience} view`} />
+        <Kpi label="Open recommendations" value={String(open.length)} sub={`${audience} view`} />
         <Kpi label="Accepted this session" value={String(accepted)} tone="sage" />
         <Kpi
           label="Projected margin upside"
-          value={audience === 'D2C' ? '+$329K' : '+$420K'}
-          sub="if open recommendations are accepted"
+          value={upsideOf(open)}
+          sub="if the open recommendations are accepted"
         />
       </div>
 
       <div className="tab-row">
         <button
-          className={`tab${audience === 'D2C' ? ' active' : ''}`}
-          onClick={() => setAudience('D2C')}
+          className={`tab${audience === 'Retail' ? ' active' : ''}`}
+          onClick={() => setAudience('Retail')}
         >
-          D2C Pricing Agent
-          <span className="count">{recs.filter((r) => r.audience === 'D2C' && r.status === 'Open').length}</span>
+          Retail Pricing Agent
+          <span className="count">
+            {recs.filter((r) => r.audience === 'Retail' && r.status === 'Open').length}
+          </span>
         </button>
         <button
-          className={`tab${audience === 'Wholesale' ? ' active' : ''}`}
-          onClick={() => setAudience('Wholesale')}
+          className={`tab${audience === 'Vendor' ? ' active' : ''}`}
+          onClick={() => setAudience('Vendor')}
         >
-          Wholesale Pricing Agent
+          Vendor Program Agent
           <span className="count">
-            {recs.filter((r) => r.audience === 'Wholesale' && r.status === 'Open').length}
+            {recs.filter((r) => r.audience === 'Vendor' && r.status === 'Open').length}
           </span>
         </button>
       </div>
 
       <div className="rec-grid">
         {shown.map((r) => (
-          <div className="card rec-card" key={r.id} style={r.status !== 'Open' ? { opacity: 0.55 } : undefined}>
+          <div
+            className="card rec-card"
+            key={r.id}
+            style={r.status !== 'Open' ? { opacity: 0.55 } : undefined}
+          >
             <div className="rec-head">
-              <span className="pill camel">{r.kind}</span>
-              <span className={`pill ${r.confidence === 'High' ? 'sage' : r.confidence === 'Low' ? 'wine' : 'gold'}`}>
+              <span className={`pill ${r.kind === 'MAP compliance' ? 'critical' : 'gold'}`}>
+                {r.kind}
+              </span>
+              <span
+                className={`pill ${r.confidence === 'High' ? 'good' : r.confidence === 'Low' ? 'critical' : 'warn'}`}
+              >
                 {r.confidence} confidence
               </span>
             </div>
@@ -90,7 +118,7 @@ export function Recommendations() {
             <div className="rec-actions">
               {r.status === 'Open' ? (
                 <>
-                  <button className="btn small camel" onClick={() => setStatus(r.id, 'Accepted')}>
+                  <button className="btn small gold" onClick={() => setStatus(r.id, 'Accepted')}>
                     Accept
                   </button>
                   <button className="btn small ghost" onClick={() => setStatus(r.id, 'Dismissed')}>
@@ -98,7 +126,7 @@ export function Recommendations() {
                   </button>
                 </>
               ) : (
-                <span className={`pill ${r.status === 'Accepted' ? 'sage' : ''}`}>{r.status}</span>
+                <span className={`pill ${r.status === 'Accepted' ? 'good' : ''}`}>{r.status}</span>
               )}
             </div>
           </div>
@@ -107,7 +135,11 @@ export function Recommendations() {
 
       <div className="section">
         <div className="section-head">
-          <h2>{audience === 'D2C' ? 'D2C KPIs the agent monitors' : 'Wholesale KPIs the agent monitors'}</h2>
+          <h2>
+            {audience === 'Retail'
+              ? 'Retail KPIs the agent monitors'
+              : 'Vendor program KPIs the agent monitors'}
+          </h2>
         </div>
         <div className="chip-row">
           {kpis.map((k) => (

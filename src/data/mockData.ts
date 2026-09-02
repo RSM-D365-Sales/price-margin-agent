@@ -1,441 +1,580 @@
-// ── Deterministic Vince mock dataset · Sales Margin Agent ───────────────
+// ── Alvin's Island · Pricing & Margin Agent · demo dataset ──────────────
+//
+// This file is the single source of truth for the demo. Every figure here is
+// synthetic and hand-built to be internally consistent:
+//
+//   · Own-label souvenir/beach goods run 65–82% margin (cheap to source,
+//     bought on impulse by tourists who do not comparison-shop).
+//   · Branded surf (Quiksilver, Roxy, Volcom, O'Neill, Rip Curl, Vans, Fox)
+//     runs at keystone — ~45–50% at full price — and the brand sets a MAP
+//     floor plus how much markdown it will co-fund.
+//   That gap is the demo's whole argument: discounting own-label is cheap,
+//   discounting branded is where margin quietly disappears.
+//
+// Every date is derived from AS_OF in src/lib/config.ts. Move that one value
+// and the entire dataset — order dates, price windows, markdown waves, MAP
+// waivers — slides with it. Nothing here is hardcoded to a calendar date.
+//
+// Store locations are Alvin's Island's real coastal estate. Staff names,
+// order numbers, customer-facing incidents and vendor program numbers are
+// invented; no real person is portrayed as making a bad pricing call.
+
+import { iso, AS_OF } from '../lib/config'
 import type {
   PriceOverride,
   PricingSetupLine,
   PriceHistoryRecord,
   Recommendation,
   KpiMonitor,
+  StoreLocation,
 } from '../models/types'
+import { lineMarginPct, lineBreachesMap } from '../models/types'
 
 // ═══════════════════════════════════════════════════════════════════════
-// 1 · Price overrides (audit trail)
+// 0 · Store estate
 // ═══════════════════════════════════════════════════════════════════════
+
+export const STORES: StoreLocation[] = [
+  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL' },
+  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL' },
+  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL' },
+  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL' },
+  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL' },
+  { code: 'ST-MAD', name: 'Madeira Beach, FL', state: 'FL' },
+  { code: 'ST-CLW', name: 'Clearwater Beach, FL', state: 'FL' },
+  { code: 'ST-DAY', name: 'Daytona Beach, FL', state: 'FL' },
+  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL' },
+  { code: 'ST-ORB', name: 'Orange Beach, AL', state: 'AL' },
+]
+
+/** Vendor programs the branded assortment is bought under. */
+export const VENDOR_PROGRAMS = [
+  { account: 'V-2041', brand: 'Quiksilver', program: 'Core Surf Program', coopPct: 12 },
+  { account: 'V-2044', brand: 'Roxy', program: 'Womens Swim Program', coopPct: 10 },
+  { account: 'V-2052', brand: 'Volcom', program: 'Womens Swim Program', coopPct: 0 },
+  { account: 'V-2068', brand: "O'Neill", program: 'Watersports Program', coopPct: 8 },
+  { account: 'V-2075', brand: 'Rip Curl', program: 'Core Surf Program', coopPct: 0 },
+  { account: 'V-2090', brand: 'Vans', program: 'Footwear Program', coopPct: 0 },
+  { account: 'V-2103', brand: 'Fox Racing', program: 'Headwear Program', coopPct: 5 },
+] as const
+
+// ═══════════════════════════════════════════════════════════════════════
+// 1 · Price overrides (POS audit trail)
+// ═══════════════════════════════════════════════════════════════════════
+// Register-level price overrides. Branded items carry the vendor MAP floor so
+// the audit can separate "thin margin" from "we broke the vendor agreement" —
+// several branded overrides sit thin but exactly at the floor, which is the
+// distinction the MAP column exists to draw.
 
 export const PRICE_OVERRIDES: PriceOverride[] = [
   {
-    id: 'OVR-001', orderNumber: 'SO-104482', orderDate: '2026-07-02',
-    channel: 'Retail Store', storeOrSite: 'Vince · SoHo NYC',
-    styleName: 'Cashmere Mock Neck Sweater', itemNumber: 'V7231', category: 'Knitwear',
-    colorSize: 'Heather Grey / M', unitCost: 118.5, originalPrice: 345, overridePrice: 189,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Dana Whitfield', overriddenByEmail: 'dana.whitfield@vince.com',
+    id: 'OVR-001', orderNumber: 'SO-241882', orderDate: iso(-2),
+    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
+    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
+    unitCost: 25.0, originalPrice: 49.99, overridePrice: 29.99, mapFloor: 44.99,
+    reasonCode: 'Price Match', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
   },
   {
-    id: 'OVR-002', orderNumber: 'SO-104507', orderDate: '2026-07-01',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Silk Slip Dress', itemNumber: 'V8104', category: 'Dresses',
-    colorSize: 'Champagne / 6', unitCost: 96.0, originalPrice: 425, overridePrice: 297.5,
-    reasonCode: 'Price Match', overriddenBy: 'Marcus Lee', overriddenByEmail: 'marcus.lee@vince.com',
+    id: 'OVR-002', orderNumber: 'SO-241790', orderDate: iso(-4),
+    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
+    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
+    unitCost: 12.75, originalPrice: 39.99, overridePrice: 27.99,
+    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
   },
   {
-    id: 'OVR-003', orderNumber: 'SO-104391', orderDate: '2026-06-28',
-    channel: 'Retail Store', storeOrSite: 'Vince · Melrose LA',
-    styleName: 'Boiled Cashmere Funnel Neck', itemNumber: 'V7288', category: 'Knitwear',
-    colorSize: 'Camel / S', unitCost: 142.0, originalPrice: 395, overridePrice: 225,
-    reasonCode: 'Floor Sample', overriddenBy: 'Priya Raman', overriddenByEmail: 'priya.raman@vince.com',
+    id: 'OVR-003', orderNumber: 'SO-241655', orderDate: iso(-6),
+    channel: 'Store', storeOrSite: 'Destin, FL',
+    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
+    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
+    unitCost: 32.0, originalPrice: 59.99, overridePrice: 54.99, mapFloor: 54.99,
+    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
   },
   {
-    id: 'OVR-004', orderNumber: 'SO-104233', orderDate: '2026-06-24',
-    channel: 'Retail Store', storeOrSite: 'Vince · Madison Ave',
-    styleName: 'Wool-Cashmere Belted Coat', itemNumber: 'V9087', category: 'Outerwear',
-    colorSize: 'Black / M', unitCost: 246.0, originalPrice: 695, overridePrice: 417,
-    reasonCode: 'Customer Loyalty', overriddenBy: 'Dana Whitfield', overriddenByEmail: 'dana.whitfield@vince.com',
+    id: 'OVR-004', orderNumber: 'SO-241503', orderDate: iso(-9),
+    channel: 'Store', storeOrSite: 'Gulf Shores, AL',
+    styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
+    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
+    unitCost: 8.2, originalPrice: 29.99, overridePrice: 19.99,
+    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
   },
   {
-    id: 'OVR-005', orderNumber: 'SO-104188', orderDate: '2026-06-21',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Brushed Alpaca Cardigan', itemNumber: 'V7412', category: 'Knitwear',
-    colorSize: 'Oat / L', unitCost: 128.0, originalPrice: 365, overridePrice: 146,
-    reasonCode: 'Damaged Goods', overriddenBy: 'Jordan Silva', overriddenByEmail: 'jordan.silva@vince.com',
+    id: 'OVR-005', orderNumber: 'SO-241344', orderDate: iso(-12),
+    channel: 'Store', storeOrSite: 'Orange Beach, AL',
+    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
+    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
+    unitCost: 15.0, originalPrice: 29.99, overridePrice: 17.99, mapFloor: 26.99,
+    reasonCode: 'Manager Discretion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
   },
   {
-    id: 'OVR-006', orderNumber: 'SO-104102', orderDate: '2026-06-18',
-    channel: 'Retail Store', storeOrSite: 'Vince · SoHo NYC',
-    styleName: 'Linen Easy Pull-On Pant', itemNumber: 'V6120', category: 'Bottoms',
-    colorSize: 'White / 8', unitCost: 61.5, originalPrice: 225, overridePrice: 157.5,
-    reasonCode: 'Event Promotion', overriddenBy: 'Marcus Lee', overriddenByEmail: 'marcus.lee@vince.com',
+    id: 'OVR-006', orderNumber: 'SO-241201', orderDate: iso(-15),
+    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
+    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
+    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
+    unitCost: 4.2, originalPrice: 16.99, overridePrice: 10.0,
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
   },
   {
-    id: 'OVR-007', orderNumber: 'SO-103976', orderDate: '2026-06-14',
-    channel: 'Retail Store', storeOrSite: 'Vince · Michigan Ave',
-    styleName: 'Leather Ankle Boot', itemNumber: 'V5540', category: 'Footwear',
-    colorSize: 'Cognac / 8.5', unitCost: 158.0, originalPrice: 450, overridePrice: 270,
-    reasonCode: 'Price Match', overriddenBy: 'Ana Kowalski', overriddenByEmail: 'ana.kowalski@vince.com',
+    id: 'OVR-007', orderNumber: 'SO-241077', orderDate: iso(-18),
+    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    styleName: 'Volcom Pucker Up Cheekini Bottom', itemNumber: 'VL-3390',
+    category: 'Swimwear', productLine: 'Branded', colorSize: 'Black / S',
+    unitCost: 27.5, originalPrice: 55.0, overridePrice: 38.5, mapFloor: 49.5,
+    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
   },
   {
-    id: 'OVR-008', orderNumber: 'SO-103881', orderDate: '2026-06-10',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Ribbed Cashmere Tank', itemNumber: 'V7199', category: 'Knitwear',
-    colorSize: 'Ivory / XS', unitCost: 74.0, originalPrice: 245, overridePrice: 122.5,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Jordan Silva', overriddenByEmail: 'jordan.silva@vince.com',
+    id: 'OVR-008', orderNumber: 'SO-240918', orderDate: iso(-22),
+    channel: 'Store', storeOrSite: 'Clearwater Beach, FL',
+    styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
+    category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
+    unitCost: 4.75, originalPrice: 19.99, overridePrice: 12.99,
+    reasonCode: 'Display Sample', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@alvinsisland.com',
   },
   {
-    id: 'OVR-009', orderNumber: 'SO-103764', orderDate: '2026-06-05',
-    channel: 'Retail Store', storeOrSite: 'Vince · Melrose LA',
-    styleName: 'Silk Band-Collar Blouse', itemNumber: 'V6301', category: 'Tops',
-    colorSize: 'Sand / S', unitCost: 82.0, originalPrice: 295, overridePrice: 206.5,
-    reasonCode: 'Customer Loyalty', overriddenBy: 'Priya Raman', overriddenByEmail: 'priya.raman@vince.com',
+    id: 'OVR-009', orderNumber: 'SO-240766', orderDate: iso(-26),
+    channel: 'Store', storeOrSite: 'Madeira Beach, FL',
+    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
+    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
+    unitCost: 20.0, originalPrice: 39.99, overridePrice: 25.99, mapFloor: 35.99,
+    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
   },
   {
-    id: 'OVR-010', orderNumber: 'SO-103712', orderDate: '2026-06-02',
-    channel: 'Retail Store', storeOrSite: 'Vince · Madison Ave',
-    styleName: 'Double-Face Wool Coat', itemNumber: 'V9134', category: 'Outerwear',
-    colorSize: 'Camel / S', unitCost: 312.0, originalPrice: 895, overridePrice: 495,
-    reasonCode: 'Floor Sample', overriddenBy: 'Dana Whitfield', overriddenByEmail: 'dana.whitfield@vince.com',
+    id: 'OVR-010', orderNumber: 'SO-240612', orderDate: iso(-31),
+    channel: 'Store', storeOrSite: 'Daytona Beach, FL',
+    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
+    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
+    unitCost: 13.4, originalPrice: 44.99, overridePrice: 24.99,
+    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
   },
   {
-    id: 'OVR-011', orderNumber: 'SO-103654', orderDate: '2026-05-29',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Garment-Dyed Cotton Tee', itemNumber: 'V6055', category: 'Tops',
-    colorSize: 'Washed Black / M', unitCost: 28.5, originalPrice: 95, overridePrice: 52,
-    reasonCode: 'Price Match', overriddenBy: 'Marcus Lee', overriddenByEmail: 'marcus.lee@vince.com',
+    id: 'OVR-011', orderNumber: 'SO-240455', orderDate: iso(-36),
+    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
+    category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
+    unitCost: 8.9, originalPrice: 29.99, overridePrice: 19.99,
+    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
   },
   {
-    id: 'OVR-012', orderNumber: 'SO-103598', orderDate: '2026-05-26',
-    channel: 'Retail Store', storeOrSite: 'Vince · SoHo NYC',
-    styleName: 'Suede Slip-On Loafer', itemNumber: 'V5488', category: 'Footwear',
-    colorSize: 'Taupe / 9', unitCost: 132.0, originalPrice: 395, overridePrice: 245,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Ana Kowalski', overriddenByEmail: 'ana.kowalski@vince.com',
+    id: 'OVR-012', orderNumber: 'SO-240298', orderDate: iso(-41),
+    channel: 'Store', storeOrSite: 'Navarre Beach, FL',
+    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
+    unitCost: 27.5, originalPrice: 54.99, overridePrice: 34.99, mapFloor: 49.49,
+    reasonCode: 'Manager Discretion', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
   },
   {
-    id: 'OVR-013', orderNumber: 'SO-103501', orderDate: '2026-05-21',
-    channel: 'Retail Store', storeOrSite: 'Vince · Michigan Ave',
-    styleName: 'Crepe Midi Skirt', itemNumber: 'V6188', category: 'Bottoms',
-    colorSize: 'Black / 4', unitCost: 71.0, originalPrice: 265, overridePrice: 132.5,
-    reasonCode: 'Damaged Goods', overriddenBy: 'Ana Kowalski', overriddenByEmail: 'ana.kowalski@vince.com',
+    id: 'OVR-013', orderNumber: 'SO-240134', orderDate: iso(-48),
+    channel: 'Store', storeOrSite: 'Fort Walton Beach, FL',
+    styleName: 'Sea Turtle Beach Towel 30x60', itemNumber: 'AI-9020',
+    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Multi / 30x60',
+    unitCost: 6.4, originalPrice: 21.99, overridePrice: 12.99,
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@alvinsisland.com',
   },
   {
-    id: 'OVR-014', orderNumber: 'SO-103455', orderDate: '2026-05-18',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Cashmere Mock Neck Sweater', itemNumber: 'V7231', category: 'Knitwear',
-    colorSize: 'Black / L', unitCost: 118.5, originalPrice: 345, overridePrice: 258.75,
-    reasonCode: 'Customer Loyalty', overriddenBy: 'Jordan Silva', overriddenByEmail: 'jordan.silva@vince.com',
+    id: 'OVR-014', orderNumber: 'SO-239977', orderDate: iso(-55),
+    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
+    styleName: 'Fox Racing Legacy Moth Snapback', itemNumber: 'FX-6612',
+    category: 'Headwear', productLine: 'Branded', colorSize: 'Black / OS',
+    unitCost: 14.0, originalPrice: 27.99, overridePrice: 24.99, mapFloor: 24.99,
+    reasonCode: 'Event Promotion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
   },
   {
-    id: 'OVR-015', orderNumber: 'SO-103390', orderDate: '2026-05-14',
-    channel: 'Retail Store', storeOrSite: 'Vince · Melrose LA',
-    styleName: 'Slub Cotton Wrap Dress', itemNumber: 'V8066', category: 'Dresses',
-    colorSize: 'Olive / 10', unitCost: 84.0, originalPrice: 325, overridePrice: 178.75,
-    reasonCode: 'Event Promotion', overriddenBy: 'Priya Raman', overriddenByEmail: 'priya.raman@vince.com',
+    id: 'OVR-015', orderNumber: 'SO-239741', orderDate: iso(-63),
+    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
+    category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
+    unitCost: 6.1, originalPrice: 24.99, overridePrice: 16.99,
+    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
   },
   {
-    id: 'OVR-016', orderNumber: 'SO-103311', orderDate: '2026-05-09',
-    channel: 'Retail Store', storeOrSite: 'Vince · Madison Ave',
-    styleName: 'Leather Moto Jacket', itemNumber: 'V9201', category: 'Outerwear',
-    colorSize: 'Black / M', unitCost: 388.0, originalPrice: 1095, overridePrice: 657,
-    reasonCode: 'Price Match', overriddenBy: 'Dana Whitfield', overriddenByEmail: 'dana.whitfield@vince.com',
+    id: 'OVR-016', orderNumber: 'SO-239502', orderDate: iso(-72),
+    channel: 'Store', storeOrSite: 'Destin, FL',
+    styleName: 'Quiksilver Original Boardshort Tee', itemNumber: 'QS-4090',
+    category: 'Tees & Tanks', productLine: 'Branded', colorSize: 'White / M',
+    unitCost: 12.5, originalPrice: 24.99, overridePrice: 22.49, mapFloor: 22.49,
+    reasonCode: 'Price Match', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
   },
   {
-    id: 'OVR-017', orderNumber: 'SO-103288', orderDate: '2026-05-06',
-    channel: 'Ecommerce', storeOrSite: 'vince.com',
-    styleName: 'Wide-Leg Wool Trouser', itemNumber: 'V6144', category: 'Bottoms',
-    colorSize: 'Charcoal / 6', unitCost: 92.0, originalPrice: 295, overridePrice: 154,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Marcus Lee', overriddenByEmail: 'marcus.lee@vince.com',
+    id: 'OVR-017', orderNumber: 'SO-239188', orderDate: iso(-86),
+    channel: 'Store', storeOrSite: 'Gulf Shores, AL',
+    styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
+    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
+    unitCost: 1.85, originalPrice: 9.99, overridePrice: 5.0,
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
   },
   {
-    id: 'OVR-018', orderNumber: 'SO-103205', orderDate: '2026-05-02',
-    channel: 'Retail Store', storeOrSite: 'Vince · SoHo NYC',
-    styleName: 'Ribbed Cashmere Tank', itemNumber: 'V7199', category: 'Knitwear',
-    colorSize: 'Rose / S', unitCost: 74.0, originalPrice: 245, overridePrice: 171.5,
-    reasonCode: 'Customer Loyalty', overriddenBy: 'Jordan Silva', overriddenByEmail: 'jordan.silva@vince.com',
+    id: 'OVR-018', orderNumber: 'SO-238904', orderDate: iso(-104),
+    channel: 'Store', storeOrSite: 'Orange Beach, AL',
+    styleName: 'Gulf Shores, AL Sunset Tank', itemNumber: 'AI-6208',
+    category: 'Souvenirs', productLine: 'Own label', colorSize: 'Sand / M',
+    unitCost: 4.6, originalPrice: 18.99, overridePrice: 11.99,
+    reasonCode: 'Display Sample', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
   },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
 // 2 · Pricing setup (margin threshold test)
 // ═══════════════════════════════════════════════════════════════════════
+// 20 active price records. At the 45% default target, 6 fail — 3 on the
+// retail side and 3 on the vendor side. Three of those also price below a
+// vendor MAP floor with no active waiver, which is a compliance issue rather
+// than a margin one.
 
 export const PRICING_SETUP: PricingSetupLine[] = [
-  // ── D2C · Ecommerce ──
+  // ── Retail · alvinsisland.com + the store estate ──
   {
-    id: 'PRC-D2C-01', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Cashmere Mock Neck Sweater', itemNumber: 'V7231', category: 'Knitwear',
-    colorSize: 'Heather Grey / M', quantity: 1, basePrice: 345, marginComponent: 0,
-    discountPct: 25,
+    id: 'PRC-RTL-01', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
+    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
+    quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 12.75,
+    validFrom: iso(-3), validTo: iso(120),
+  },
+  {
+    id: 'PRC-RTL-02', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
+    quantity: 1, basePrice: 49.99, marginComponent: 0, discountPct: 20,
     discount: {
-      name: 'Summer Knit Event', type: 'Threshold',
-      validFrom: '2026-06-15', validTo: '2026-07-31',
+      name: 'End-of-Summer Surf Event', type: 'Threshold',
+      validFrom: iso(-14), validTo: iso(20),
       tiers: [
-        { label: '$0 – $299 order total', discountPct: 15 },
-        { label: '$300 – $599 order total', discountPct: 25 },
-        { label: '$600+ order total', discountPct: 30 },
+        { label: '$0 – $74 order total', discountPct: 10 },
+        { label: '$75 – $149 order total', discountPct: 20 },
+        { label: '$150+ order total', discountPct: 25 },
       ],
     },
-    autoCharge: 0, unitCost: 118.5, validFrom: '2026-06-15', validTo: '2026-07-31',
+    autoCharge: 0, unitCost: 25.0, mapFloor: 44.99, mapWaiverUntil: iso(20),
+    validFrom: iso(-14), validTo: iso(20),
   },
   {
-    id: 'PRC-D2C-02', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Silk Slip Dress', itemNumber: 'V8104', category: 'Dresses',
-    colorSize: 'Champagne / 6', quantity: 1, basePrice: 425, marginComponent: 0,
-    discountPct: 0, autoCharge: 0, unitCost: 96.0,
-    validFrom: '2026-02-01', validTo: '2026-12-31',
-  },
-  {
-    id: 'PRC-D2C-03', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Brushed Alpaca Cardigan', itemNumber: 'V7412', category: 'Knitwear',
-    colorSize: 'Oat / L', quantity: 1, basePrice: 365, marginComponent: 0,
-    discountPct: 40,
+    id: 'PRC-RTL-03', mode: 'Retail', channel: 'Store', channelDetail: 'All Gulf Coast stores',
+    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
+    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
+    quantity: 2, basePrice: 16.99, marginComponent: 0, discountPct: 30,
     discount: {
-      name: 'End-of-Season Markdown · Wave 3', type: 'Line',
-      validFrom: '2026-06-01', validTo: '2026-08-15',
-    },
-    autoCharge: 0, unitCost: 128.0, validFrom: '2026-06-01', validTo: '2026-08-15',
-  },
-  {
-    id: 'PRC-D2C-04', mode: 'D2C', channel: 'Retail Store', channelDetail: 'All Vince full-price stores',
-    styleName: 'Linen Easy Pull-On Pant', itemNumber: 'V6120', category: 'Bottoms',
-    colorSize: 'White / 8', quantity: 1, basePrice: 225, marginComponent: 0,
-    discountPct: 30,
-    discount: {
-      name: 'Summer Linen Promo', type: 'Quantity',
-      validFrom: '2026-06-20', validTo: '2026-07-20',
+      name: 'Souvenir Tee Multi-Buy', type: 'Quantity',
+      validFrom: iso(-60), validTo: iso(45),
       tiers: [
-        { label: '1 unit', discountPct: 20 },
+        { label: '1 unit', discountPct: 0 },
         { label: '2 units', discountPct: 30 },
-        { label: '3+ units', discountPct: 35 },
+        { label: '3+ units', discountPct: 40 },
       ],
     },
-    autoCharge: 0, unitCost: 61.5, validFrom: '2026-06-20', validTo: '2026-07-20',
+    autoCharge: 0, unitCost: 4.2,
+    validFrom: iso(-60), validTo: iso(45),
   },
   {
-    id: 'PRC-D2C-05', mode: 'D2C', channel: 'Retail Store', channelDetail: 'All Vince full-price stores',
-    styleName: 'Garment-Dyed Cotton Tee', itemNumber: 'V6055', category: 'Tops',
-    colorSize: 'Washed Black / M', quantity: 1, basePrice: 95, marginComponent: 0,
-    discountPct: 50,
+    id: 'PRC-RTL-04', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
+    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
+    quantity: 1, basePrice: 59.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 32.0, mapFloor: 54.99,
+    validFrom: iso(-210), validTo: iso(150),
+  },
+  {
+    id: 'PRC-RTL-05', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
+    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
+    quantity: 1, basePrice: 44.99, marginComponent: 0, discountPct: 40,
     discount: {
-      name: 'Core Tee Clearance', type: 'Line',
-      validFrom: '2026-06-25', validTo: '2026-07-25',
+      name: 'End-of-Season Swim Clearance', type: 'Line',
+      validFrom: iso(-11), validTo: iso(40),
     },
-    autoCharge: 0, unitCost: 28.5, validFrom: '2026-06-25', validTo: '2026-07-25',
+    autoCharge: 0, unitCost: 13.4,
+    validFrom: iso(-11), validTo: iso(40),
   },
   {
-    id: 'PRC-D2C-06', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Wool-Cashmere Belted Coat', itemNumber: 'V9087', category: 'Outerwear',
-    colorSize: 'Black / M', quantity: 1, basePrice: 695, marginComponent: 0,
-    discountPct: 45,
+    id: 'PRC-RTL-06', mode: 'Retail', channel: 'Store', channelDetail: 'Panhandle stores',
+    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
+    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
+    quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 30,
     discount: {
-      name: 'Outerwear Aging Inventory Markdown', type: 'Line',
-      validFrom: '2026-05-10', validTo: '2026-08-31',
+      name: 'Swim Season Flush · Panhandle', type: 'Line',
+      validFrom: iso(-8), validTo: iso(30),
     },
-    autoCharge: 0, unitCost: 246.0, validFrom: '2026-05-10', validTo: '2026-08-31',
+    autoCharge: 0, unitCost: 15.0, vendorAllowancePct: 10, mapFloor: 26.99,
+    validFrom: iso(-8), validTo: iso(30),
   },
   {
-    id: 'PRC-D2C-07', mode: 'D2C', channel: 'Retail Store', channelDetail: 'Vince outlet stores',
-    styleName: 'Crepe Midi Skirt', itemNumber: 'V6188', category: 'Bottoms',
-    colorSize: 'Black / 4', quantity: 1, basePrice: 265, marginComponent: -40,
-    discountPct: 35,
+    id: 'PRC-RTL-07', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
+    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
+    quantity: 1, basePrice: 9.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 1.85,
+    validFrom: iso(-300), validTo: iso(180),
+  },
+  {
+    id: 'PRC-RTL-08', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
+    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
+    quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 4.95, unitCost: 8.2,
+    validFrom: iso(-180), validTo: iso(180),
+  },
+  {
+    id: 'PRC-RTL-09', mode: 'Retail', channel: 'Store', channelDetail: 'Clearance / outlet stores',
+    styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
+    category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
+    quantity: 1, basePrice: 29.99, marginComponent: -6.0, discountPct: 25,
     discount: {
       name: 'Outlet Everyday Price', type: 'Line',
-      validFrom: '2026-01-01', validTo: '2026-12-31',
+      validFrom: iso(-240), validTo: iso(120),
     },
-    autoCharge: 0, unitCost: 71.0, validFrom: '2026-01-01', validTo: '2026-12-31',
+    autoCharge: 0, unitCost: 8.9,
+    validFrom: iso(-240), validTo: iso(120),
   },
   {
-    id: 'PRC-D2C-08', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Leather Ankle Boot', itemNumber: 'V5540', category: 'Footwear',
-    colorSize: 'Cognac / 8.5', quantity: 1, basePrice: 450, marginComponent: 0,
-    discountPct: 0, autoCharge: 12.5, unitCost: 158.0,
-    validFrom: '2026-02-01', validTo: '2026-12-31',
-  },
-  {
-    id: 'PRC-D2C-09', mode: 'D2C', channel: 'Retail Store', channelDetail: 'All Vince full-price stores',
-    styleName: 'Silk Band-Collar Blouse', itemNumber: 'V6301', category: 'Tops',
-    colorSize: 'Sand / S', quantity: 1, basePrice: 295, marginComponent: 0,
-    discountPct: 20,
+    id: 'PRC-RTL-10', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
+    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
+    quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 15,
     discount: {
-      name: 'Silk Capsule Promo', type: 'Line',
-      validFrom: '2026-06-28', validTo: '2026-07-14',
+      name: 'Watersports Site Promo', type: 'Line',
+      validFrom: iso(-6), validTo: iso(13),
     },
-    autoCharge: 0, unitCost: 82.0, validFrom: '2026-06-28', validTo: '2026-07-14',
+    autoCharge: 0, unitCost: 20.0, mapFloor: 35.99, mapWaiverUntil: iso(13),
+    validFrom: iso(-6), validTo: iso(13),
   },
   {
-    id: 'PRC-D2C-10', mode: 'D2C', channel: 'Ecommerce', channelDetail: 'vince.com',
-    styleName: 'Ribbed Cashmere Tank', itemNumber: 'V7199', category: 'Knitwear',
-    colorSize: 'Ivory / XS', quantity: 1, basePrice: 245, marginComponent: 0,
-    discountPct: 0, autoCharge: 0, unitCost: 74.0,
-    validFrom: '2026-02-01', validTo: '2026-12-31',
+    id: 'PRC-RTL-11', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
+    category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
+    quantity: 1, basePrice: 19.99, marginComponent: 0, discountPct: 20,
+    discount: {
+      name: 'Cap & Tee Bundle', type: 'Mix and match',
+      validFrom: iso(-45), validTo: iso(35),
+    },
+    autoCharge: 0, unitCost: 4.75,
+    validFrom: iso(-45), validTo: iso(35),
+  },
+  {
+    id: 'PRC-RTL-12', mode: 'Retail', channel: 'Store', channelDetail: 'Resort & kiosk locations',
+    styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
+    category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
+    quantity: 1, basePrice: 24.99, marginComponent: 3.0, discountPct: 0,
+    autoCharge: 0, unitCost: 6.1,
+    validFrom: iso(-150), validTo: iso(120),
   },
 
-  // ── B2B · Wholesale ──
+  // ── Vendor programs · brand-set MAP floors and co-op funding ──
   {
-    id: 'PRC-B2B-01', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Nordstrom',
-    customerAccount: 'C-100210', customerGroup: 'Premium Dept',
-    styleName: 'Cashmere Mock Neck Sweater', itemNumber: 'V7231', category: 'Knitwear',
-    colorSize: 'Heather Grey / M', quantity: 24, basePrice: 172.5, marginComponent: 0,
-    discountPct: 8,
+    id: 'PRC-VEN-01', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Quiksilver · Core Surf Program',
+    vendorAccount: 'V-2041', vendorProgram: 'Core Surf Program',
+    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
+    quantity: 144, basePrice: 49.99, marginComponent: 0, discountPct: 25,
     discount: {
-      name: 'Nordstrom FW26 Volume Program', type: 'Quantity',
-      validFrom: '2026-01-01', validTo: '2026-12-31',
+      name: 'Season-End Co-op Markdown', type: 'Threshold',
+      validFrom: iso(-14), validTo: iso(20),
       tiers: [
-        { label: '1 – 23 units', discountPct: 0 },
-        { label: '24 – 99 units', discountPct: 8 },
-        { label: '100+ units', discountPct: 12 },
+        { label: '$0 – $4,999 program value', discountPct: 15 },
+        { label: '$5,000 – $14,999 program value', discountPct: 25 },
+        { label: '$15,000+ program value', discountPct: 30 },
       ],
     },
-    autoCharge: 0, unitCost: 118.5, validFrom: '2026-01-01', validTo: '2026-12-31',
+    autoCharge: 0, unitCost: 25.0, vendorAllowancePct: 12,
+    mapFloor: 44.99, mapWaiverUntil: iso(20),
+    validFrom: iso(-14), validTo: iso(20),
   },
   {
-    id: 'PRC-B2B-02', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Saks Fifth Avenue',
-    customerAccount: 'C-100305', customerGroup: 'Premium Dept',
-    styleName: 'Silk Slip Dress', itemNumber: 'V8104', category: 'Dresses',
-    colorSize: 'Champagne / 6', quantity: 12, basePrice: 212.5, marginComponent: 0,
-    discountPct: 0, autoCharge: 0, unitCost: 96.0,
-    validFrom: '2026-01-01', validTo: '2026-12-31',
+    id: 'PRC-VEN-02', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Quiksilver · Core Surf Program',
+    vendorAccount: 'V-2041', vendorProgram: 'Core Surf Program',
+    styleName: 'Quiksilver Original Boardshort Tee', itemNumber: 'QS-4090',
+    category: 'Tees & Tanks', productLine: 'Branded', colorSize: 'White / M',
+    quantity: 288, basePrice: 24.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 12.5, mapFloor: 22.49,
+    validFrom: iso(-240), validTo: iso(125),
   },
   {
-    id: 'PRC-B2B-03', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Macy\u2019s',
-    customerAccount: 'C-100118', customerGroup: 'Dept Store',
-    styleName: 'Brushed Alpaca Cardigan', itemNumber: 'V7412', category: 'Knitwear',
-    colorSize: 'Oat / L', quantity: 48, basePrice: 182.5, marginComponent: -18,
-    discountPct: 15,
+    id: 'PRC-VEN-03', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Roxy · Womens Swim Program',
+    vendorAccount: 'V-2044', vendorProgram: 'Womens Swim Program',
+    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
+    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
+    quantity: 216, basePrice: 29.99, marginComponent: 0, discountPct: 30,
     discount: {
-      name: 'Macy\u2019s Spring Close-Out', type: 'Threshold',
-      validFrom: '2026-05-01', validTo: '2026-08-31',
+      name: 'Swim Season Flush', type: 'Quantity',
+      validFrom: iso(-8), validTo: iso(30),
       tiers: [
-        { label: '$0 – $9,999 PO value', discountPct: 10 },
-        { label: '$10,000 – $24,999 PO value', discountPct: 15 },
-        { label: '$25,000+ PO value', discountPct: 20 },
+        { label: '1 – 99 units', discountPct: 20 },
+        { label: '100 – 249 units', discountPct: 30 },
+        { label: '250+ units', discountPct: 35 },
       ],
     },
-    autoCharge: 0, unitCost: 128.0, validFrom: '2026-05-01', validTo: '2026-08-31',
+    autoCharge: 0, unitCost: 15.0, vendorAllowancePct: 10, mapFloor: 26.99,
+    validFrom: iso(-8), validTo: iso(30),
   },
   {
-    id: 'PRC-B2B-04', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Bloomingdale\u2019s',
-    customerAccount: 'C-100422', customerGroup: 'Premium Dept',
-    styleName: 'Wool-Cashmere Belted Coat', itemNumber: 'V9087', category: 'Outerwear',
-    colorSize: 'Black / M', quantity: 18, basePrice: 347.5, marginComponent: 0,
-    discountPct: 20,
+    id: 'PRC-VEN-04', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Volcom · Womens Swim Program',
+    vendorAccount: 'V-2052', vendorProgram: 'Womens Swim Program',
+    styleName: 'Volcom Pucker Up Cheekini Bottom', itemNumber: 'VL-3390',
+    category: 'Swimwear', productLine: 'Branded', colorSize: 'Black / S',
+    quantity: 96, basePrice: 55.0, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 27.5, mapFloor: 49.5,
+    validFrom: iso(-210), validTo: iso(155),
+  },
+  {
+    id: 'PRC-VEN-05', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: "O'Neill · Watersports Program",
+    vendorAccount: 'V-2068', vendorProgram: 'Watersports Program',
+    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
+    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
+    quantity: 120, basePrice: 39.99, marginComponent: 0, discountPct: 15,
     discount: {
-      name: 'Bloomingdale\u2019s Aged Outerwear Deal', type: 'Line',
-      validFrom: '2026-06-01', validTo: '2026-09-30',
+      name: 'Watersports Co-op Window', type: 'Line',
+      validFrom: iso(-6), validTo: iso(13),
     },
-    autoCharge: 0, unitCost: 246.0, validFrom: '2026-06-01', validTo: '2026-09-30',
+    autoCharge: 0, unitCost: 20.0, vendorAllowancePct: 8,
+    mapFloor: 35.99, mapWaiverUntil: iso(13),
+    validFrom: iso(-6), validTo: iso(13),
   },
   {
-    id: 'PRC-B2B-05', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Premium Dept price group',
-    customerGroup: 'Premium Dept',
-    styleName: 'Leather Ankle Boot', itemNumber: 'V5540', category: 'Footwear',
-    colorSize: 'Cognac / 8.5', quantity: 36, basePrice: 225, marginComponent: 0,
-    discountPct: 5,
+    id: 'PRC-VEN-06', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Rip Curl · Core Surf Program',
+    vendorAccount: 'V-2075', vendorProgram: 'Core Surf Program',
+    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
+    quantity: 84, basePrice: 54.99, marginComponent: 0, discountPct: 20,
     discount: {
-      name: 'Footwear Program Discount', type: 'Quantity',
-      validFrom: '2026-01-01', validTo: '2026-12-31',
+      name: 'Surf Carryover Markdown', type: 'Line',
+      validFrom: iso(-30), validTo: iso(25),
+    },
+    // The vendor's approved markdown window closed nine days ago and the
+    // price never went back up — this is the demo's compliance finding.
+    autoCharge: 0, unitCost: 27.5, mapFloor: 49.49, mapWaiverUntil: iso(-9),
+    validFrom: iso(-30), validTo: iso(25),
+  },
+  {
+    id: 'PRC-VEN-07', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Vans · Footwear Program',
+    vendorAccount: 'V-2090', vendorProgram: 'Footwear Program',
+    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
+    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
+    quantity: 60, basePrice: 59.99, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 32.0, mapFloor: 54.99,
+    validFrom: iso(-210), validTo: iso(150),
+  },
+  {
+    id: 'PRC-VEN-08', mode: 'Vendor', channel: 'Vendor Program',
+    channelDetail: 'Fox Racing · Headwear Program',
+    vendorAccount: 'V-2103', vendorProgram: 'Headwear Program',
+    styleName: 'Fox Racing Legacy Moth Snapback', itemNumber: 'FX-6612',
+    category: 'Headwear', productLine: 'Branded', colorSize: 'Black / OS',
+    quantity: 144, basePrice: 27.99, marginComponent: 0, discountPct: 10,
+    discount: {
+      name: 'Headwear Program Allowance', type: 'Quantity',
+      validFrom: iso(-90), validTo: iso(60),
       tiers: [
-        { label: '1 – 35 units', discountPct: 0 },
-        { label: '36 – 99 units', discountPct: 5 },
-        { label: '100+ units', discountPct: 9 },
+        { label: '1 – 71 units', discountPct: 0 },
+        { label: '72 – 143 units', discountPct: 5 },
+        { label: '144+ units', discountPct: 10 },
       ],
     },
-    autoCharge: 4.5, unitCost: 158.0, validFrom: '2026-01-01', validTo: '2026-12-31',
-  },
-  {
-    id: 'PRC-B2B-06', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Dept Store price group',
-    customerGroup: 'Dept Store',
-    styleName: 'Garment-Dyed Cotton Tee', itemNumber: 'V6055', category: 'Tops',
-    colorSize: 'Washed Black / M', quantity: 120, basePrice: 47.5, marginComponent: -6,
-    discountPct: 12,
-    discount: {
-      name: 'Core Basics Volume Tier', type: 'Quantity',
-      validFrom: '2026-01-01', validTo: '2026-12-31',
-      tiers: [
-        { label: '1 – 59 units', discountPct: 0 },
-        { label: '60 – 119 units', discountPct: 8 },
-        { label: '120+ units', discountPct: 12 },
-      ],
-    },
-    autoCharge: 0, unitCost: 28.5, validFrom: '2026-01-01', validTo: '2026-12-31',
-  },
-  {
-    id: 'PRC-B2B-07', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Neiman Marcus',
-    customerAccount: 'C-100501', customerGroup: 'Luxury Specialty',
-    styleName: 'Double-Face Wool Coat', itemNumber: 'V9134', category: 'Outerwear',
-    colorSize: 'Camel / S', quantity: 10, basePrice: 447.5, marginComponent: 22,
-    discountPct: 0, autoCharge: 0, unitCost: 312.0,
-    validFrom: '2026-01-01', validTo: '2026-12-31',
-  },
-  {
-    id: 'PRC-B2B-08', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Off-price partner · Rue Gilt',
-    customerAccount: 'C-100688', customerGroup: 'Off-Price',
-    styleName: 'Crepe Midi Skirt', itemNumber: 'V6188', category: 'Bottoms',
-    colorSize: 'Black / 4', quantity: 200, basePrice: 106, marginComponent: -22,
-    discountPct: 18,
-    discount: {
-      name: 'Off-Price Season Flush', type: 'Threshold',
-      validFrom: '2026-06-01', validTo: '2026-07-31',
-      tiers: [
-        { label: '$0 – $14,999 PO value', discountPct: 12 },
-        { label: '$15,000+ PO value', discountPct: 18 },
-      ],
-    },
-    autoCharge: 0, unitCost: 71.0, validFrom: '2026-06-01', validTo: '2026-07-31',
-  },
-  {
-    id: 'PRC-B2B-09', mode: 'B2B', channel: 'Wholesale', channelDetail: 'Nordstrom',
-    customerAccount: 'C-100210', customerGroup: 'Premium Dept',
-    styleName: 'Silk Band-Collar Blouse', itemNumber: 'V6301', category: 'Tops',
-    colorSize: 'Sand / S', quantity: 30, basePrice: 147.5, marginComponent: 0,
-    discountPct: 0, autoCharge: 0, unitCost: 82.0,
-    validFrom: '2026-01-01', validTo: '2026-12-31',
+    autoCharge: 0, unitCost: 14.0, vendorAllowancePct: 5, mapFloor: 24.99,
+    validFrom: iso(-90), validTo: iso(60),
   },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
 // 3 · Price history audit
 // ═══════════════════════════════════════════════════════════════════════
+// A price scope is whatever the price is set against: the retail list price,
+// one channel, one store, or a vendor program's MAP schedule.
 
 export const PRICE_HISTORY: PriceHistoryRecord[] = [
   {
-    productKey: 'V7231|Heather Grey / M', styleName: 'Cashmere Mock Neck Sweater',
-    itemNumber: 'V7231', category: 'Knitwear', colorSize: 'Heather Grey / M',
-    customerAccount: 'D2C', customerName: 'Direct (vince.com / retail)',
+    productKey: 'QS-4412|Sapphire / 32|RETAIL',
+    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
+    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
     entries: [
-      { id: 'PH-1-5', price: 345, activeFrom: '2026-02-01', activeTo: null, changedBy: 'K. Alvarez', changeType: 'Manual update', note: 'Spring 26 list price refresh' },
-      { id: 'PH-1-4', price: 325, activeFrom: '2025-08-15', activeTo: '2026-01-31', changedBy: 'K. Alvarez', changeType: 'Trade agreement', note: 'FW25 seasonal price' },
-      { id: 'PH-1-3', price: 276.25, activeFrom: '2025-06-01', activeTo: '2025-08-14', changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'SS25 wave 1 markdown · 15%' },
-      { id: 'PH-1-2', price: 325, activeFrom: '2025-02-01', activeTo: '2025-05-31', changedBy: 'K. Alvarez', changeType: 'Trade agreement', note: 'SS25 list' },
-      { id: 'PH-1-1', price: 315, activeFrom: '2024-08-01', activeTo: '2025-01-31', changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-1-4', price: 39.99, activeFrom: iso(-14), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Season-end co-op markdown · 20%, vendor-funded at 12%' },
+      { id: 'PH-1-3', price: 49.99, activeFrom: iso(-104), activeTo: iso(-15), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer program price' },
+      { id: 'PH-1-2', price: 47.99, activeFrom: iso(-196), activeTo: iso(-105), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Spring Break program price' },
+      { id: 'PH-1-1', price: 45.99, activeFrom: iso(-380), activeTo: iso(-197), changedBy: 'System', changeType: 'Initial', note: 'Program introduction' },
     ],
   },
   {
-    productKey: 'V7231|Heather Grey / M|C-100210', styleName: 'Cashmere Mock Neck Sweater',
-    itemNumber: 'V7231', category: 'Knitwear', colorSize: 'Heather Grey / M',
-    customerAccount: 'C-100210', customerName: 'Nordstrom',
+    productKey: 'QS-4412|Sapphire / 32|VP-QUIK',
+    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
+    scopeId: 'VP-QUIK', scopeName: 'Quiksilver · Core Surf Program (MAP)',
     entries: [
-      { id: 'PH-2-4', price: 172.5, activeFrom: '2026-01-01', activeTo: null, changedBy: 'R. Chen', changeType: 'Contract renewal', note: 'CY26 wholesale agreement' },
-      { id: 'PH-2-3', price: 168, activeFrom: '2025-07-01', activeTo: '2025-12-31', changedBy: 'R. Chen', changeType: 'Trade agreement', note: 'Mid-year adjustment' },
-      { id: 'PH-2-2', price: 162.5, activeFrom: '2025-01-01', activeTo: '2025-06-30', changedBy: 'R. Chen', changeType: 'Contract renewal', note: 'CY25 wholesale agreement' },
-      { id: 'PH-2-1', price: 157.5, activeFrom: '2024-08-01', activeTo: '2024-12-31', changedBy: 'System', changeType: 'Initial', note: 'Style introduction · wholesale' },
+      { id: 'PH-2-3', price: 44.99, activeFrom: iso(-104), activeTo: null, changedBy: 'Vendor feed', changeType: 'MAP update', note: `Markdown waiver active to ${iso(20)} — pricing below MAP is approved` },
+      { id: 'PH-2-2', price: 42.99, activeFrom: iso(-196), activeTo: iso(-105), changedBy: 'Vendor feed', changeType: 'MAP update', note: 'Spring Break MAP schedule' },
+      { id: 'PH-2-1', price: 41.99, activeFrom: iso(-380), activeTo: iso(-197), changedBy: 'System', changeType: 'Initial', note: 'Program MAP at introduction' },
     ],
   },
   {
-    productKey: 'V9087|Black / M', styleName: 'Wool-Cashmere Belted Coat',
-    itemNumber: 'V9087', category: 'Outerwear', colorSize: 'Black / M',
-    customerAccount: 'D2C', customerName: 'Direct (vince.com / retail)',
+    productKey: 'RC-5521|Navy / 34|VP-RIPC',
+    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
+    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
+    scopeId: 'VP-RIPC', scopeName: 'Rip Curl · Core Surf Program (MAP)',
     entries: [
-      { id: 'PH-3-4', price: 382.25, activeFrom: '2026-05-10', activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Aging inventory · 45% markdown (19 wks supply)' },
-      { id: 'PH-3-3', price: 556, activeFrom: '2026-02-15', activeTo: '2026-05-09', changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 1 · 20%' },
-      { id: 'PH-3-2', price: 695, activeFrom: '2025-08-15', activeTo: '2026-02-14', changedBy: 'K. Alvarez', changeType: 'Trade agreement', note: 'FW25 list price' },
-      { id: 'PH-3-1', price: 675, activeFrom: '2025-02-01', activeTo: '2025-08-14', changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-3-3', price: 49.49, activeFrom: iso(-8), activeTo: null, changedBy: 'Vendor feed', changeType: 'MAP update', note: `Markdown waiver expired ${iso(-9)} — MAP is back in force at $49.49` },
+      { id: 'PH-3-2', price: 49.49, activeFrom: iso(-30), activeTo: iso(-9), changedBy: 'Vendor feed', changeType: 'MAP update', note: 'Carryover markdown waiver granted for 21 days' },
+      { id: 'PH-3-1', price: 49.49, activeFrom: iso(-360), activeTo: iso(-31), changedBy: 'System', changeType: 'Initial', note: 'Program MAP at introduction' },
     ],
   },
   {
-    productKey: 'V8104|Champagne / 6|C-100305', styleName: 'Silk Slip Dress',
-    itemNumber: 'V8104', category: 'Dresses', colorSize: 'Champagne / 6',
-    customerAccount: 'C-100305', customerName: 'Saks Fifth Avenue',
+    productKey: 'AI-2255|Aqua / M|RETAIL',
+    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
+    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
+    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
     entries: [
-      { id: 'PH-4-3', price: 212.5, activeFrom: '2026-01-01', activeTo: null, changedBy: 'R. Chen', changeType: 'Contract renewal', note: 'CY26 wholesale agreement' },
-      { id: 'PH-4-2', price: 205, activeFrom: '2025-03-01', activeTo: '2025-12-31', changedBy: 'R. Chen', changeType: 'Trade agreement', note: 'Style intro · wholesale' },
-      { id: 'PH-4-1', price: 197.5, activeFrom: '2025-01-15', activeTo: '2025-02-28', changedBy: 'System', changeType: 'Initial', note: 'Pre-book price' },
+      { id: 'PH-4-3', price: 44.99, activeFrom: iso(-150), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer list price' },
+      { id: 'PH-4-2', price: 42.99, activeFrom: iso(-260), activeTo: iso(-151), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Spring Break list price' },
+      { id: 'PH-4-1', price: 39.99, activeFrom: iso(-330), activeTo: iso(-261), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
     ],
   },
   {
-    productKey: 'V7412|Oat / L', styleName: 'Brushed Alpaca Cardigan',
-    itemNumber: 'V7412', category: 'Knitwear', colorSize: 'Oat / L',
-    customerAccount: 'D2C', customerName: 'Direct (vince.com / retail)',
+    productKey: 'AI-2255|Aqua / M|ECOM',
+    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
+    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
+    scopeId: 'ECOM', scopeName: 'alvinsisland.com',
     entries: [
-      { id: 'PH-5-4', price: 219, activeFrom: '2026-06-01', activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 3 · 40%' },
-      { id: 'PH-5-3', price: 273.75, activeFrom: '2026-04-15', activeTo: '2026-05-31', changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 2 · 25%' },
-      { id: 'PH-5-2', price: 310.25, activeFrom: '2026-03-01', activeTo: '2026-04-14', changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 1 · 15%' },
-      { id: 'PH-5-1', price: 365, activeFrom: '2025-08-15', activeTo: '2026-02-28', changedBy: 'System', changeType: 'Initial', note: 'FW25 introduction' },
+      { id: 'PH-5-4', price: 26.99, activeFrom: iso(-11), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'End-of-season swim clearance · 40% — still clears 50% margin' },
+      { id: 'PH-5-3', price: 33.74, activeFrom: iso(-40), activeTo: iso(-12), changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 1 · 25%' },
+      { id: 'PH-5-2', price: 44.99, activeFrom: iso(-150), activeTo: iso(-41), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer list, matched to retail' },
+      { id: 'PH-5-1', price: 42.99, activeFrom: iso(-330), activeTo: iso(-151), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+    ],
+  },
+  {
+    productKey: 'AI-6011|White / L|RETAIL',
+    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
+    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
+    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    entries: [
+      { id: 'PH-6-3', price: 16.99, activeFrom: iso(-190), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Season price — held through the summer' },
+      { id: 'PH-6-2', price: 15.99, activeFrom: iso(-420), activeTo: iso(-191), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Prior season price' },
+      { id: 'PH-6-1', price: 14.99, activeFrom: iso(-600), activeTo: iso(-421), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+    ],
+  },
+  {
+    productKey: 'AI-6011|White / L|ST-PCB',
+    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
+    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
+    scopeId: 'ST-PCB', scopeName: 'Panama City Beach, FL store',
+    entries: [
+      { id: 'PH-7-3', price: 11.89, activeFrom: iso(-60), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Agent reprice', note: 'Souvenir tee multi-buy · effective price at 2 units' },
+      { id: 'PH-7-2', price: 16.99, activeFrom: iso(-190), activeTo: iso(-61), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Matched to retail list' },
+      { id: 'PH-7-1', price: 15.99, activeFrom: iso(-420), activeTo: iso(-191), changedBy: 'System', changeType: 'Initial', note: 'Home-city style, store-specific from launch' },
+    ],
+  },
+  {
+    productKey: 'AI-7702|Navy / L|RETAIL',
+    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
+    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
+    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    entries: [
+      { id: 'PH-8-3', price: 39.99, activeFrom: iso(-3), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Post-Labor Day price hold — fleece demand rises into snowbird season' },
+      { id: 'PH-8-2', price: 36.99, activeFrom: iso(-96), activeTo: iso(-4), changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Peak Summer promo price' },
+      { id: 'PH-8-1', price: 34.99, activeFrom: iso(-300), activeTo: iso(-97), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
     ],
   },
 ]
@@ -445,113 +584,149 @@ export const PRICE_HISTORY: PriceHistoryRecord[] = [
 // ═══════════════════════════════════════════════════════════════════════
 
 export const RECOMMENDATIONS: Recommendation[] = [
-  // ── D2C ──
+  // ── Retail ──
   {
-    id: 'REC-D2C-1', audience: 'D2C', kind: 'Increase price',
-    title: 'Raise Cashmere Mock Neck to $365',
+    id: 'REC-RTL-1', audience: 'Retail', kind: 'Markdown timing',
+    title: 'Stage the swim clearance in three waves, own-label first',
     detail:
-      'Increase the price of the Cashmere Mock Neck (V7231) from $345 to $365. Demand remains strong, inventory is limited, and similar products continue selling at full price.',
-    impact: '+$185K estimated margin improvement', confidence: 'High', status: 'Open',
+      'Own-label swim still clears 50% margin at a 40% cut; branded swim does not. Run the waves on own-label and hold branded at MAP until a vendor waiver is in hand.',
+    bullets: ['Week 1 · 25% — own-label only', 'Week 3 · 40% — own-label only', 'Week 5 · 55% — add branded once waivers land'],
+    impact: '+$128K margin vs. a flat 50% cut across all swim', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-D2C-2', audience: 'D2C', kind: 'Delay markdown',
-    title: 'Delay Silk Slip Dress markdown by 2 weeks',
+    id: 'REC-RTL-2', audience: 'Retail', kind: 'Delay markdown',
+    title: 'Hold the Destin hoodie at $39.99 through October',
     detail:
-      'Instead of marking down immediately: delay the markdown by 2 weeks. Current sell-through is 68%, above the 62% target for this point in the season.',
-    impact: 'Protects ~$48K of full-price revenue', confidence: 'High', status: 'Open',
+      'Fleece sell-through is 58% against a 52% target for this point in the season, and snowbird traffic builds from October. Marking it down now gives away a price the market is paying.',
+    impact: 'Protects ~$61K of full-price revenue', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-D2C-3', audience: 'D2C', kind: 'Markdown timing',
-    title: 'Cadenced markdown plan · Brushed Alpaca Cardigan',
-    detail: 'Recommended markdown timing for remaining FW inventory:',
-    bullets: ['Week 1 · 15%', 'Week 3 · 25%', 'Week 5 · 40%'],
-    impact: 'Est. +6 pts sell-through vs. flat 40%', confidence: 'Medium', status: 'Open',
-  },
-  {
-    id: 'REC-D2C-4', audience: 'D2C', kind: 'Optimize promotion',
-    title: 'Narrow the July promotion to outerwear',
-    detail: 'Replace the sitewide offer with a targeted promotion:',
-    bullets: ['Offer 20% off outerwear only', 'Exclude cashmere', 'Exclude new arrivals'],
-    impact: 'Est. +3.2 pts promo ROI', confidence: 'Medium', status: 'Open',
-  },
-  {
-    id: 'REC-D2C-5', audience: 'D2C', kind: 'Inventory-driven',
-    title: 'Style V9087 has 19 weeks of supply',
-    detail: 'The Wool-Cashmere Belted Coat is aging. Options, in order of margin impact:',
-    bullets: ['Reduce price by 15%', 'Move inventory to outlet', 'Bundle with accessories'],
-    impact: 'Frees ~$96K of working capital', confidence: 'High', status: 'Open',
-  },
-
-  // ── Wholesale ──
-  {
-    id: 'REC-B2B-1', audience: 'Wholesale', kind: 'Customer-specific pricing',
-    title: 'Nordstrom · raise wholesale price 2% at renewal',
+    id: 'REC-RTL-3', audience: 'Retail', kind: 'Increase price',
+    title: 'Raise own-label souvenir tees from $16.99 to $18.99',
     detail:
-      'Nordstrom consistently purchases high-margin collections with low returns. Increase the wholesale price by 2% at contract renewal.',
-    impact: '+$420K expected annual margin gain', confidence: 'High', status: 'Open',
+      'Souvenir tees sell on impulse to visitors who are not comparison-shopping, and nearby kiosks list comparable tees at $19.99. Unit velocity has been flat across two price moves, which suggests headroom.',
+    impact: '+$214K estimated annual margin', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-B2B-2', audience: 'Wholesale', kind: 'Margin protection',
-    title: 'Reject 20% discount request · offer freight instead',
+    id: 'REC-RTL-4', audience: 'Retail', kind: 'Store-specific pricing',
+    title: 'Carry the $3 kiosk uplift across all resort locations',
     detail:
-      'Before approving the pending discount: requested discount is 20%, resulting margin would be 18% — below the company minimum of 30%.',
-    bullets: ['Recommendation: Reject the discount', 'Counter-offer: free freight instead'],
-    impact: 'Protects 12 pts of margin', confidence: 'High', status: 'Open',
+      'Resort and kiosk locations already price own-label dry-fit $3 above the estate with no measurable conversion loss. Extend the uplift to headwear and beach accessories at the same locations.',
+    impact: '+$47K margin per season', confidence: 'Medium', status: 'Open',
   },
   {
-    id: 'REC-B2B-3', audience: 'Wholesale', kind: 'Product mix',
-    title: 'Shift the reorder mix away from denim',
-    detail: 'Instead of ordering 100 denim:',
-    bullets: ['Recommend 60 knitwear + 40 dresses'],
-    impact: '+4.5 pts expected margin improvement', confidence: 'Medium', status: 'Open',
-  },
-  {
-    id: 'REC-B2B-4', audience: 'Wholesale', kind: 'Contract terms',
-    title: 'Contract levers to protect list price',
-    detail: 'For upcoming renewals, prefer structural incentives over price cuts:',
+    id: 'REC-RTL-5', audience: 'Retail', kind: 'Inventory-driven',
+    title: 'Boardshorts are at 14 weeks of supply going into the off-season',
+    detail: 'Gulf Coast boardshort demand falls off sharply after Labor Day. Options, in order of margin impact:',
     bullets: [
-      'Volume rebate instead of upfront discount',
-      'Seasonal incentives',
-      'Early payment discount',
-      'Freight incentives',
-      'Marketing funds instead of price reductions',
+      'Transfer to South Florida stores, where the season runs into November',
+      'Request a co-op markdown extension before cutting price',
+      'Mark down 25% only once the MAP waiver is confirmed',
     ],
-    confidence: 'Medium', status: 'Open',
+    impact: 'Frees ~$186K of working capital', confidence: 'High', status: 'Open',
+  },
+
+  // ── Vendor programs ──
+  {
+    id: 'REC-VEN-1', audience: 'Vendor', kind: 'MAP compliance',
+    title: 'Three lines price below MAP with no active waiver',
+    detail:
+      'Two Roxy tie-side records (store and program) and the Rip Curl Surflite are below their vendor MAP floors. The Rip Curl waiver expired and the price was never restored.',
+    bullets: ['Restore Rip Curl Surflite to the $49.49 floor', 'Request a Roxy waiver or pull the Panhandle flush back to $26.99'],
+    impact: 'Clears 3 open agreement breaches', confidence: 'High', status: 'Open',
+  },
+  {
+    id: 'REC-VEN-2', audience: 'Vendor', kind: 'Vendor terms',
+    title: 'Negotiate co-op markdown funding into the Rip Curl program',
+    detail:
+      'Quiksilver funds 12% of cost on approved markdown windows and O’Neill funds 8%. Rip Curl funds nothing, which is why the same 20% markdown earns 8 points less margin there than on comparable Quiksilver product.',
+    impact: '+$96K if Rip Curl matches Quiksilver at 12%', confidence: 'Medium', status: 'Open',
+  },
+  {
+    id: 'REC-VEN-3', audience: 'Vendor', kind: 'Margin protection',
+    title: 'Rip Curl Surflite at 20% off earns 37.5% — under the vendor floor',
+    detail:
+      'The line is below the 38% vendor margin floor and below MAP at the same time. Rather than deepening the cut, take it back to the floor and open a funded window.',
+    bullets: ['Restore to MAP and close the unfunded markdown', 'Counter with a vendor-funded window before the next flush'],
+    impact: 'Protects 8 pts of margin across 84 units', confidence: 'High', status: 'Open',
+  },
+  {
+    id: 'REC-VEN-4', audience: 'Vendor', kind: 'Product mix',
+    title: 'Shift the spring pre-book toward own-label boardshorts',
+    detail:
+      'Branded boardshorts carry a MAP floor and 45–50% margin. Own-label equivalents run near 68% and can be discounted freely for spring-break traffic.',
+    bullets: ['Pre-book 60% branded / 40% own-label instead of 100% branded'],
+    impact: '+9.1 pts blended margin on the category', confidence: 'Medium', status: 'Open',
   },
 ]
 
-export const D2C_KPIS: KpiMonitor[] = [
-  { label: 'Gross Margin %', value: '68.4%', trend: 'up' },
-  { label: 'Full-price sell-through', value: '61%', trend: 'up' },
-  { label: 'Markdown %', value: '22%', trend: 'down' },
-  { label: 'Promotion ROI', value: '3.1x', trend: 'flat' },
-  { label: 'Inventory aging', value: '9.4 wks', trend: 'down' },
-  { label: 'GMROI', value: '2.8', trend: 'up' },
-  { label: 'Sell-through', value: '57%', trend: 'up' },
-  { label: 'Return rate', value: '11.2%', trend: 'flat' },
-  { label: 'Margin at risk', value: '$412K', trend: 'down' },
+export const RETAIL_KPIS: KpiMonitor[] = [
+  { label: 'Gross margin %', value: '61.8%', trend: 'up' },
+  { label: 'Full-price sell-through', value: '54%', trend: 'up' },
+  { label: 'Markdown %', value: '27%', trend: 'down' },
+  { label: 'Promotion ROI', value: '2.9x', trend: 'flat' },
+  { label: 'Weeks of supply', value: '11.2', trend: 'down' },
+  { label: 'GMROI', value: '3.4', trend: 'up' },
+  { label: 'Units per transaction', value: '2.6', trend: 'up' },
+  { label: 'Store conversion', value: '38%', trend: 'flat' },
+  { label: 'Own-label mix', value: '57%', trend: 'up' },
 ]
 
-export const WHOLESALE_KPIS: KpiMonitor[] = [
-  { label: 'Margin by customer', value: '34.7% avg', trend: 'up' },
-  { label: 'Margin by sales rep', value: '33.1% avg', trend: 'flat' },
-  { label: 'Margin by region', value: 'NE 36.2% top', trend: 'up' },
-  { label: 'Average discount', value: '9.8%', trend: 'down' },
-  { label: 'Chargebacks', value: '$86K', trend: 'down' },
-  { label: 'Freight deductions', value: '$34K', trend: 'flat' },
-  { label: 'Returns', value: '6.1%', trend: 'flat' },
-  { label: 'Contribution margin', value: '28.9%', trend: 'up' },
-  { label: 'Profit per account', value: '$318K avg', trend: 'up' },
-  { label: 'Average order value', value: '$24,600', trend: 'up' },
+export const VENDOR_KPIS: KpiMonitor[] = [
+  { label: 'Margin by brand', value: '44.9% avg', trend: 'flat' },
+  { label: 'Co-op funding captured', value: '$312K', trend: 'up' },
+  { label: 'MAP compliance rate', value: '96.2%', trend: 'down' },
+  { label: 'Average program discount', value: '14.2%', trend: 'up' },
+  { label: 'Vendor allowance earned', value: '$208K', trend: 'up' },
+  { label: 'Return-to-vendor rate', value: '3.4%', trend: 'flat' },
+  { label: 'Program margin', value: '43.1%', trend: 'flat' },
+  { label: 'Units per program', value: '1,180 avg', trend: 'up' },
+  { label: 'Pre-book commitment', value: '$4.2M', trend: 'up' },
 ]
 
 // category list for filters
 export const CATEGORIES = [
-  'Knitwear',
-  'Outerwear',
-  'Dresses',
-  'Tops',
-  'Bottoms',
+  'Swimwear',
+  'Boardshorts',
+  'Tees & Tanks',
+  'Hoodies & Fleece',
+  'Dry-Fit',
+  'Headwear',
   'Footwear',
-  'Accessories',
+  'Beach Accessories',
+  'Souvenirs',
 ] as const
+
+// ═══════════════════════════════════════════════════════════════════════
+// 5 · Reconciliation
+// ═══════════════════════════════════════════════════════════════════════
+// Surfaced on the Setup page so the numbers can be defended live if someone
+// interrogates them. Derived from the data above — never typed in by hand.
+
+export interface ReconciliationLine {
+  label: string
+  value: string
+}
+
+export function reconciliation(marginTarget: number): ReconciliationLine[] {
+  const retail = PRICING_SETUP.filter((l) => l.mode === 'Retail')
+  const vendor = PRICING_SETUP.filter((l) => l.mode === 'Vendor')
+  const failing = PRICING_SETUP.filter((l) => lineMarginPct(l) <= marginTarget)
+  const breaches = PRICING_SETUP.filter((l) => lineBreachesMap(l, AS_OF))
+  const ownLabel = PRICING_SETUP.filter((l) => l.productLine === 'Own label')
+  const avg = (ls: PricingSetupLine[]) =>
+    ls.length ? ls.reduce((s, l) => s + lineMarginPct(l), 0) / ls.length : 0
+
+  return [
+    { label: 'As-of date', value: AS_OF },
+    { label: 'Price overrides on file', value: String(PRICE_OVERRIDES.length) },
+    { label: 'Active pricing setup lines', value: `${PRICING_SETUP.length} (${retail.length} retail · ${vendor.length} vendor)` },
+    { label: `Lines at or below ${marginTarget}% margin`, value: `${failing.length} of ${PRICING_SETUP.length}` },
+    { label: 'MAP breaches without an active waiver', value: String(breaches.length) },
+    { label: 'Average margin · own label', value: `${avg(ownLabel).toFixed(1)}%` },
+    { label: 'Average margin · branded', value: `${avg(PRICING_SETUP.filter((l) => l.productLine === 'Branded')).toFixed(1)}%` },
+    { label: 'Price history records', value: `${PRICE_HISTORY.length} across ${new Set(PRICE_HISTORY.map((r) => r.scopeId)).size} price scopes` },
+    { label: 'Store estate', value: `${STORES.length} locations · ${STORES.filter((s) => s.state === 'FL').length} FL, ${STORES.filter((s) => s.state === 'AL').length} AL` },
+    { label: 'Vendor programs', value: String(VENDOR_PROGRAMS.length) },
+  ]
+}

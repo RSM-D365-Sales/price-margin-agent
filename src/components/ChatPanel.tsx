@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { askAgent, SUGGESTED_PROMPTS } from '../lib/agent'
+import { BRAND } from '../lib/config'
 
 interface Msg {
   role: 'user' | 'agent'
@@ -11,7 +12,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     {
       role: 'agent',
       text:
-        'I\u2019m the Sales Margin assistant. Ask me about price overrides, margin threshold tests, price history, or the open pricing recommendations.',
+        'I\u2019m the pricing assistant. Ask me about price overrides, margin threshold tests, vendor MAP compliance, price history, or the open recommendations.',
     },
   ])
   const [input, setInput] = useState('')
@@ -33,7 +34,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     <aside className="chat-panel">
       <div className="chat-head">
         <div>
-          <div className="eyebrow">Vince · Sales Margin Agent</div>
+          <div className="eyebrow">{BRAND.name}</div>
           <div className="title">Ask the Agent</div>
         </div>
         <button className="close" onClick={onClose} aria-label="Close assistant">
@@ -59,7 +60,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       <div className="chat-input-row">
         <input
           className="input"
-          placeholder="Ask about margins, overrides, pricing…"
+          placeholder="Ask about margins, overrides, MAP…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send(input)}
