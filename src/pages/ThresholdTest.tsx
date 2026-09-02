@@ -4,24 +4,17 @@ import {
   lineMarginPct,
   lineUnfundedMarginPct,
   lineSalesPrice,
-  lineEffectiveCost,
   lineBelowMap,
   lineBreachesMap,
   type PricingSetupLine,
   type PricingMode,
-  type PriceComponentTarget,
 } from '../models/types'
-import { money, pct, num, shortDate, isoToday } from '../lib/format'
+import { money, pct, num, shortDate } from '../lib/format'
 import { AS_OF, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
+import { RepriceModal } from '../components/RepriceModal'
 import { useToast } from '../components/useToast'
-
-const COMPONENT_LABELS: Record<PriceComponentTarget, string> = {
-  basePrice: 'Base price (TA)',
-  marginComponent: 'Margin component',
-  discountPct: 'Discount %',
-}
 
 export function ThresholdTest() {
   // test inputs — the window is anchored to the demo's as-of date
@@ -38,14 +31,6 @@ export function ThresholdTest() {
   const [discountDetail, setDiscountDetail] = useState<PricingSetupLine | null>(null)
   const [repriceOpen, setRepriceOpen] = useState(false)
   const [, showToast, toastNode] = useToast()
-
-  // reprice inputs
-  const [repriceComponent, setRepriceComponent] = useState<PriceComponentTarget>('discountPct')
-  const [repriceTargetMargin, setRepriceTargetMargin] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
-  const [repriceFrom, setRepriceFrom] = useState(isoToday())
-  const [repriceTo, setRepriceTo] = useState('')
-  const [noEndDate, setNoEndDate] = useState(true)
-  const [respectMap, setRespectMap] = useState(true)
 
   /** Lines matching everything except the mode — used for both tab counts. */
   const matching = useMemo(
@@ -90,47 +75,17 @@ export function ThresholdTest() {
     setSelected((s) => (s.size === results.length ? new Set() : new Set(results.map((r) => r.id))))
   }
 
-  /**
-   * Solve the chosen component so the line reaches the target margin.
-   *   salesPrice = (base + marginComp) * (1 - disc) + autoCharge
-   *   target:  (salesPrice - effectiveCost) / salesPrice = m
-   *        →   salesPrice = effectiveCost / (1 - m)
-   * Effective cost is net of any vendor allowance, so a co-funded line needs a
-   * smaller price move than an unfunded one. When "hold at or above MAP" is on,
-   * the solved price is floored at the vendor's minimum advertised price.
-   */
-  function repriceLine(l: PricingSetupLine): PricingSetupLine {
-    const m = repriceTargetMargin / 100
-    let targetSales = lineEffectiveCost(l) / (1 - m)
-    if (respectMap && l.mapFloor !== undefined) targetSales = Math.max(targetSales, l.mapFloor)
+  const repriceLines = useMemo(
+    () => (selected.size ? results.filter((r) => selected.has(r.id)) : results),
+    [results, selected],
+  )
 
-    const next = { ...l, validFrom: repriceFrom, validTo: noEndDate ? iso(3650) : repriceTo }
-    if (repriceComponent === 'discountPct') {
-      const gross = l.basePrice + l.marginComponent
-      const disc = gross > 0 ? Math.max(0, (1 - (targetSales - l.autoCharge) / gross) * 100) : 0
-      next.discountPct = Math.round(disc * 10) / 10
-    } else if (repriceComponent === 'basePrice') {
-      const base = (targetSales - l.autoCharge) / (1 - l.discountPct / 100) - l.marginComponent
-      next.basePrice = Math.round(base * 100) / 100
-    } else {
-      const comp = (targetSales - l.autoCharge) / (1 - l.discountPct / 100) - l.basePrice
-      next.marginComponent = Math.round(comp * 100) / 100
-    }
-    return next
-  }
-
-  const repriceIds = selected.size ? selected : new Set(results.map((r) => r.id))
-  const repricePreview = results.filter((r) => repriceIds.has(r.id)).slice(0, 5)
-
-  function executeReprice() {
-    setLines((ls) => ls.map((l) => (repriceIds.has(l.id) ? repriceLine(l) : l)))
+  function applyReprice(solved: PricingSetupLine[], summary: string) {
+    const byId = new Map(solved.map((l) => [l.id, l]))
+    setLines((ls) => ls.map((l) => byId.get(l.id) ?? l))
     setRepriceOpen(false)
     setSelected(new Set())
-    showToast(
-      `New prices executed for ${repriceIds.size} line${repriceIds.size === 1 ? '' : 's'} · ` +
-        `${COMPONENT_LABELS[repriceComponent]} solved to reach ${repriceTargetMargin}% margin` +
-        (respectMap ? ', held at or above MAP' : ''),
-    )
+    showToast(summary)
   }
 
   return (
@@ -449,145 +404,12 @@ export function ThresholdTest() {
       )}
 
       {repriceOpen && (
-        <Modal
-          title="Draft new price"
-          sub={`The agent solves the chosen component so each line reaches the target margin, measured against cost net of any vendor allowance.${mode === 'Vendor' ? ' Vendor lines route through trade-agreement journal approval.' : ''}`}
+        <RepriceModal
+          lines={repriceLines}
+          note={mode === 'Vendor' ? 'Vendor lines route through trade-agreement journal approval.' : undefined}
           onClose={() => setRepriceOpen(false)}
-          actions={
-            <>
-              <button className="btn ghost" onClick={() => setRepriceOpen(false)}>
-                Cancel
-              </button>
-              <button className="btn gold" onClick={executeReprice}>
-                Confirm &amp; execute new price
-              </button>
-            </>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div className="field">
-              <label>Items to update</label>
-              <div style={{ fontSize: 13 }}>
-                {selected.size
-                  ? `${selected.size} selected line${selected.size === 1 ? '' : 's'}`
-                  : `All ${results.length} displayed lines`}
-              </div>
-            </div>
-            <div className="field">
-              <label>Price component to update</label>
-              <select
-                className="select"
-                value={repriceComponent}
-                onChange={(e) => setRepriceComponent(e.target.value as PriceComponentTarget)}
-              >
-                <option value="basePrice">Base price (trade agreement)</option>
-                <option value="marginComponent">Margin component</option>
-                <option value="discountPct">Discount %</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Target margin %</label>
-              <input
-                type="number"
-                className="input"
-                style={{ width: 120 }}
-                value={repriceTargetMargin}
-                min={0}
-                max={95}
-                onChange={(e) => setRepriceTargetMargin(Number(e.target.value))}
-              />
-            </div>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-              <input
-                type="checkbox"
-                checked={respectMap}
-                onChange={(e) => setRespectMap(e.target.checked)}
-              />
-              Hold at or above the vendor MAP floor
-            </label>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <div className="field">
-                <label>Effective from</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={repriceFrom}
-                  onChange={(e) => setRepriceFrom(e.target.value)}
-                />
-              </div>
-              <div className="field">
-                <label>To</label>
-                <input
-                  type="date"
-                  className="input"
-                  value={repriceTo}
-                  disabled={noEndDate}
-                  onChange={(e) => setRepriceTo(e.target.value)}
-                />
-              </div>
-              <label
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  alignItems: 'center',
-                  fontSize: 13,
-                  paddingBottom: 8,
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={noEndDate}
-                  onChange={(e) => setNoEndDate(e.target.checked)}
-                />
-                No end date
-              </label>
-            </div>
-
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>
-                Preview
-              </div>
-              <table className="tier-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>Today</th>
-                    <th>New {COMPONENT_LABELS[repriceComponent]}</th>
-                    <th>New margin</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {repricePreview.map((l) => {
-                    const next = repriceLine(l)
-                    return (
-                      <tr key={l.id}>
-                        <td className="mono">
-                          {l.itemNumber} · {l.colorSize}
-                        </td>
-                        <td className="num">
-                          {money(lineSalesPrice(l))} ({pct(lineMarginPct(l))})
-                        </td>
-                        <td className="num">
-                          {repriceComponent === 'discountPct'
-                            ? pct(next.discountPct, 1)
-                            : money(next[repriceComponent])}
-                        </td>
-                        <td className="num margin-ok">{pct(lineMarginPct(next))}</td>
-                      </tr>
-                    )
-                  })}
-                  {repriceIds.size > repricePreview.length && (
-                    <tr>
-                      <td colSpan={4} style={{ color: 'var(--ink-400)' }}>
-                        …and {repriceIds.size - repricePreview.length} more lines
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Modal>
+          onApply={applyReprice}
+        />
       )}
       {toastNode}
     </>

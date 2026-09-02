@@ -7,6 +7,7 @@ const NAV = [
   { to: '/', label: 'Overview', glyph: '◈', end: true },
   { to: '/overrides', label: 'Override Audit', glyph: '✎' },
   { to: '/threshold-test', label: 'Margin Threshold Test', glyph: '◮' },
+  { to: '/price-updates', label: 'Price Updates', glyph: '↗' },
   { to: '/price-history', label: 'Price History', glyph: '⧖' },
   { to: '/recommendations', label: 'Recommendations', glyph: '✦' },
   { to: '/setup', label: 'Setup', glyph: '⚙' },

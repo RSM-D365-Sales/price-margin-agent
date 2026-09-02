@@ -89,6 +89,12 @@ export interface PricingSetupLine {
   vendorAccount?: string
   /** Vendor mode: the program / price group the line belongs to. */
   vendorProgram?: string
+  /**
+   * Retail mode: the locations this price actually applies to — store codes
+   * from STORES, or 'ECOM' for the site. Drives the store filter and the
+   * roll-out scope on Price Updates.
+   */
+  storeCodes?: string[]
   styleName: string
   itemNumber: string
   category: ProductCategory
@@ -232,4 +238,59 @@ export interface StoreLocation {
   code: string
   name: string
   state: 'FL' | 'AL'
+  /** Region node in the org hierarchy this store rolls up to. */
+  region: string
 }
+
+/** A node in the organisation hierarchy — used for price roll-out scope. */
+export interface OrgNode {
+  code: string
+  name: string
+  children?: OrgNode[]
+}
+
+/** Flatten an org node to the leaf location codes underneath it. */
+export function orgLeaves(node: OrgNode): string[] {
+  if (!node.children || node.children.length === 0) return [node.code]
+  return node.children.flatMap(orgLeaves)
+}
+
+// ═══ Sales performance ══════════════════════════════════════════════════
+
+/** How velocity is expressed on the Price Updates grid. */
+export type VelocityBasis = 'day' | 'week' | 'month'
+
+export const VELOCITY_DAYS: Record<VelocityBasis, number> = {
+  day: 1,
+  week: 7,
+  month: 30,
+}
+
+export interface ItemPerformance {
+  unitsSold: number
+  /**
+   * Units that were available to sell over the window: what sold, plus what is
+   * still on hand at the end of it. A standard retail simplification — it does
+   * not attempt to reconstruct receipts mid-window.
+   */
+  unitsAvailable: number
+  /** Length of the measured window, in days. */
+  windowDays: number
+}
+
+/** units sold ÷ units available × 100 */
+export function sellThroughPct(p: ItemPerformance): number {
+  if (p.unitsAvailable <= 0) return 0
+  return (p.unitsSold / p.unitsAvailable) * 100
+}
+
+/** units sold per day / week / month over the window */
+export function salesVelocity(p: ItemPerformance, basis: VelocityBasis): number {
+  if (p.windowDays <= 0) return 0
+  return (p.unitsSold / p.windowDays) * VELOCITY_DAYS[basis]
+}
+
+// Weeks of supply deliberately lives in the data layer as coverWeeksFor(), not
+// here: it must be measured against a recent run rate, not against whatever
+// window the user is filtering to. A 90-day window spanning peak summer would
+// flatter every slow mover.

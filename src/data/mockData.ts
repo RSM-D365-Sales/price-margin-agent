@@ -27,6 +27,8 @@ import type {
   Recommendation,
   KpiMonitor,
   StoreLocation,
+  OrgNode,
+  ItemPerformance,
 } from '../models/types'
 import { lineMarginPct, lineBreachesMap } from '../models/types'
 
@@ -35,17 +37,62 @@ import { lineMarginPct, lineBreachesMap } from '../models/types'
 // ═══════════════════════════════════════════════════════════════════════
 
 export const STORES: StoreLocation[] = [
-  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL' },
-  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL' },
-  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL' },
-  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL' },
-  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL' },
-  { code: 'ST-MAD', name: 'Madeira Beach, FL', state: 'FL' },
-  { code: 'ST-CLW', name: 'Clearwater Beach, FL', state: 'FL' },
-  { code: 'ST-DAY', name: 'Daytona Beach, FL', state: 'FL' },
-  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL' },
-  { code: 'ST-ORB', name: 'Orange Beach, AL', state: 'AL' },
+  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL', region: 'RGN-PAN' },
+  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL', region: 'RGN-PAN' },
+  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL', region: 'RGN-PAN' },
+  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL', region: 'RGN-PAN' },
+  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL', region: 'RGN-PAN' },
+  { code: 'ST-MAD', name: 'Madeira Beach, FL', state: 'FL', region: 'RGN-GULF' },
+  { code: 'ST-CLW', name: 'Clearwater Beach, FL', state: 'FL', region: 'RGN-GULF' },
+  { code: 'ST-DAY', name: 'Daytona Beach, FL', state: 'FL', region: 'RGN-ATL' },
+  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL', region: 'RGN-ALA' },
+  { code: 'ST-ORB', name: 'Orange Beach, AL', state: 'AL', region: 'RGN-ALA' },
 ]
+
+/** The ecommerce channel behaves as a location for pricing and sell-through. */
+export const ECOM_CODE = 'ECOM'
+
+/** Every sellable location: the store estate plus the site. */
+export const LOCATIONS: { code: string; name: string; region: string }[] = [
+  ...STORES.map((s) => ({ code: s.code, name: s.name, region: s.region })),
+  { code: ECOM_CODE, name: 'alvinsisland.com', region: 'RGN-ECOM' },
+]
+
+/**
+ * Organisation hierarchy. Price updates roll out against a node here — pick
+ * "Florida Panhandle" and the change applies to the five stores under it.
+ */
+export const ORG_HIERARCHY: OrgNode = {
+  code: 'ALL',
+  name: 'All locations',
+  children: [
+    {
+      code: 'RGN-PAN',
+      name: 'Florida Panhandle',
+      children: STORES.filter((s) => s.region === 'RGN-PAN').map((s) => ({ code: s.code, name: s.name })),
+    },
+    {
+      code: 'RGN-GULF',
+      name: 'Gulf Coast Florida',
+      children: STORES.filter((s) => s.region === 'RGN-GULF').map((s) => ({ code: s.code, name: s.name })),
+    },
+    {
+      code: 'RGN-ATL',
+      name: 'Atlantic Florida',
+      children: STORES.filter((s) => s.region === 'RGN-ATL').map((s) => ({ code: s.code, name: s.name })),
+    },
+    {
+      code: 'RGN-ALA',
+      name: 'Alabama Coast',
+      children: STORES.filter((s) => s.region === 'RGN-ALA').map((s) => ({ code: s.code, name: s.name })),
+    },
+    { code: 'RGN-ECOM', name: 'Ecommerce', children: [{ code: ECOM_CODE, name: 'alvinsisland.com' }] },
+  ],
+}
+
+const ALL_STORE_CODES = STORES.map((s) => s.code)
+const GULF_COAST = ALL_STORE_CODES.filter((c) => c !== 'ST-DAY')
+const PANHANDLE = STORES.filter((s) => s.region === 'RGN-PAN').map((s) => s.code)
 
 /** Vendor programs the branded assortment is bought under. */
 export const VENDOR_PROGRAMS = [
@@ -225,6 +272,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   // ── Retail · alvinsisland.com + the store estate ──
   {
     id: 'PRC-RTL-01', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    storeCodes: [ECOM_CODE],
     styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
     category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
     quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 0,
@@ -233,6 +281,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-02', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    storeCodes: [ECOM_CODE],
     styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
     category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
     quantity: 1, basePrice: 49.99, marginComponent: 0, discountPct: 20,
@@ -250,6 +299,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-03', mode: 'Retail', channel: 'Store', channelDetail: 'All Gulf Coast stores',
+    storeCodes: GULF_COAST,
     styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
     category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
     quantity: 2, basePrice: 16.99, marginComponent: 0, discountPct: 30,
@@ -267,6 +317,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-04', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    storeCodes: ALL_STORE_CODES,
     styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
     category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
     quantity: 1, basePrice: 59.99, marginComponent: 0, discountPct: 0,
@@ -275,6 +326,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-05', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    storeCodes: [ECOM_CODE],
     styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
     category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
     quantity: 1, basePrice: 44.99, marginComponent: 0, discountPct: 40,
@@ -287,6 +339,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-06', mode: 'Retail', channel: 'Store', channelDetail: 'Panhandle stores',
+    storeCodes: PANHANDLE,
     styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
     category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
     quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 30,
@@ -299,6 +352,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-07', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    storeCodes: ALL_STORE_CODES,
     styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
     quantity: 1, basePrice: 9.99, marginComponent: 0, discountPct: 0,
@@ -307,6 +361,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-08', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    storeCodes: [ECOM_CODE],
     styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
     quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 0,
@@ -315,6 +370,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-09', mode: 'Retail', channel: 'Store', channelDetail: 'Clearance / outlet stores',
+    storeCodes: ['ST-FWB', 'ST-DAY'],
     styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
     category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
     quantity: 1, basePrice: 29.99, marginComponent: -6.0, discountPct: 25,
@@ -327,6 +383,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-10', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    storeCodes: [ECOM_CODE],
     styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
     category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
     quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 15,
@@ -339,6 +396,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-11', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
+    storeCodes: ALL_STORE_CODES,
     styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
     category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
     quantity: 1, basePrice: 19.99, marginComponent: 0, discountPct: 20,
@@ -351,6 +409,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-12', mode: 'Retail', channel: 'Store', channelDetail: 'Resort & kiosk locations',
+    storeCodes: ['ST-DEST', 'ST-PNS', 'ST-GSH', 'ST-ORB'],
     styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
     category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
     quantity: 1, basePrice: 24.99, marginComponent: 3.0, discountPct: 0,
@@ -698,7 +757,215 @@ export const CATEGORIES = [
 ] as const
 
 // ═══════════════════════════════════════════════════════════════════════
-// 5 · Reconciliation
+// 5 · Sales performance (seeded, deterministic)
+// ═══════════════════════════════════════════════════════════════════════
+// Unit sales are generated rather than listed, because the Price Updates page
+// needs an arbitrary date window and 18 items x 11 locations x 200 days is not
+// something to hand-write. The generator is seeded off (item, location, day),
+// so it is fully reproducible — the same demo shows the same numbers twice —
+// and any date range sums the same way every time.
+//
+// Shape of the curve: a per-item base rate at an average store, scaled by
+// store size, by Gulf Coast seasonality (spring break, peak summer, the drop
+// after Labor Day), and by day of week, with bounded noise on top.
+
+/** Days of sales history available before AS_OF. */
+export const PERFORMANCE_DAYS = 200
+
+const MS_PER_DAY = 86_400_000
+
+/** FNV-1a — stable string hash for seeding. */
+function hashStr(str: string): number {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+
+/** mulberry32 — small seeded PRNG. */
+function rand(seed: number): number {
+  let a = seed | 0
+  a = (a + 0x6d2b79f5) | 0
+  let t = Math.imul(a ^ (a >>> 15), 1 | a)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+}
+
+/** Units/day for this item at an average store in peak season. */
+const ITEM_BASE_RATE: Record<string, number> = {
+  // own label — high volume, impulse purchases
+  'AI-9105': 9.0, // Shark Tooth Necklace
+  'AI-6011': 6.0, // PCB Sunset Tee
+  'AI-6208': 5.2, // Gulf Shores Sunset Tank
+  'AI-5540': 4.0, // Logo Trucker Cap
+  'AI-9020': 3.0, // Sea Turtle Beach Towel
+  'AI-6155': 2.5, // Gulf Shores Dry-Fit Tee
+  'AI-8104': 2.0, // Paradise Dress Tunic
+  'AI-9310': 1.5, // Foam Boogie Board
+  'AI-2255': 1.4, // Ladies Tropical Palm One-Piece
+  'AI-7702': 1.2, // Destin Sun & Stripes Hoodie
+  // branded surf — lower velocity, higher ticket
+  'QS-4090': 1.3, // Quiksilver Boardshort Tee
+  'QS-4412': 1.0, // Quiksilver Everyday Boardshort
+  'RX-2208': 0.9, // Roxy Tie-Side Bottom
+  'VN-8801': 0.8, // Vans Classic Slip-On
+  'FX-6612': 0.8, // Fox Racing Snapback
+  'ON-1174': 0.6, // O'Neill Rash Guard
+  'RC-5521': 0.6, // Rip Curl Surflite Boardshort
+  'VL-3390': 0.5, // Volcom Cheekini Bottom
+}
+
+/** Relative size of each selling location. */
+const LOCATION_WEIGHT: Record<string, number> = {
+  'ST-PCB': 1.5,
+  'ST-DEST': 1.3,
+  'ST-GSH': 1.2,
+  'ST-ORB': 1.1,
+  'ST-CLW': 1.1,
+  'ST-PNS': 1.0,
+  'ST-DAY': 1.0,
+  'ST-FWB': 0.9,
+  'ST-MAD': 0.8,
+  'ST-NAV': 0.7,
+  ECOM: 2.2,
+}
+
+/**
+ * Weeks of supply each item is carrying at the current rate. This is what
+ * drives sell-through: boardshorts sitting on 14-16 weeks going into the
+ * off-season are the demo's inventory problem, souvenir tees at 3-5 weeks are
+ * the healthy comparison.
+ */
+const ITEM_COVER_WEEKS: Record<string, number> = {
+  'AI-6011': 3,
+  'AI-6208': 3.5,
+  'AI-9105': 4,
+  'AI-5540': 5,
+  'AI-9020': 5,
+  'AI-6155': 5,
+  'AI-8104': 6,
+  'AI-9310': 7,
+  'VN-8801': 7,
+  'AI-7702': 8,
+  'QS-4090': 8,
+  'FX-6612': 8,
+  'AI-2255': 9,
+  'ON-1174': 9,
+  'VL-3390': 10,
+  'RX-2208': 11,
+  'QS-4412': 14,
+  'RC-5521': 16,
+}
+
+/** Gulf Coast beach-retail seasonality, by calendar month. */
+const SEASON_BY_MONTH = [
+  0.35, // Jan
+  0.45, // Feb
+  0.95, // Mar — spring break
+  0.85, // Apr
+  1.0, // May
+  1.3, // Jun
+  1.4, // Jul — peak
+  1.15, // Aug
+  0.7, // Sep — falls away after Labor Day
+  0.5, // Oct
+  0.4, // Nov
+  0.45, // Dec
+]
+
+/** Day-of-week uplift: beach retail is a weekend business. */
+const DOW_FACTOR = [1.0, 0.85, 0.85, 0.9, 0.95, 1.15, 1.35] // Sun..Sat
+
+function dayFactor(date: Date): number {
+  return SEASON_BY_MONTH[date.getMonth()] * DOW_FACTOR[date.getDay()]
+}
+
+/** Units sold of one item at one location on one day. Deterministic. */
+function unitsOnDay(itemNumber: string, location: string, date: Date): number {
+  const base = ITEM_BASE_RATE[itemNumber]
+  const weight = LOCATION_WEIGHT[location]
+  if (base === undefined || weight === undefined) return 0
+  const seed = hashStr(`${itemNumber}|${location}|${date.toISOString().slice(0, 10)}`)
+  const noise = 0.7 + rand(seed) * 0.6
+  return Math.round(base * weight * dayFactor(date) * noise)
+}
+
+/**
+ * Weeks of supply is only meaningful against a *recent* run rate — a merchant
+ * forecasts forward on how the item is selling now, not on a 90-day average
+ * that still includes peak summer. 28 days is four whole weeks, so day-of-week
+ * effects average out.
+ */
+export const RECENT_RATE_DAYS = 28
+
+/** Mean daily units over the trailing RECENT_RATE_DAYS. */
+function recentDailyRate(itemNumber: string, location: string): number {
+  const end = new Date(AS_OF + 'T00:00:00').getTime()
+  let total = 0
+  for (let i = 0; i < RECENT_RATE_DAYS; i++) {
+    total += unitsOnDay(itemNumber, location, new Date(end - i * MS_PER_DAY))
+  }
+  return total / RECENT_RATE_DAYS
+}
+
+/**
+ * On-hand units at AS_OF, sized so the item carries its target weeks of supply
+ * *at the recent run rate*. That keeps the grid, the weeks-of-supply figure and
+ * the inventory recommendation telling the same story.
+ */
+function onHandAt(itemNumber: string, location: string): number {
+  const cover = ITEM_COVER_WEEKS[itemNumber]
+  if (cover === undefined || LOCATION_WEIGHT[location] === undefined) return 0
+  return Math.round(recentDailyRate(itemNumber, location) * cover * 7)
+}
+
+/**
+ * Weeks of supply left for an item across locations, measured on the trailing
+ * run rate rather than on whatever window the user happens to be filtering to.
+ */
+export function coverWeeksFor(itemNumber: string, locations: string[]): number {
+  let rate = 0
+  let onHand = 0
+  for (const loc of locations) {
+    rate += recentDailyRate(itemNumber, loc)
+    onHand += onHandAt(itemNumber, loc)
+  }
+  if (rate <= 0) return Infinity
+  return onHand / (rate * 7)
+}
+
+/**
+ * Sales performance for one item across a set of locations over a date window.
+ * The window is clamped to the history that exists and never runs past AS_OF —
+ * there are no future sales.
+ */
+export function performanceFor(
+  itemNumber: string,
+  locations: string[],
+  from: string,
+  to: string,
+): ItemPerformance {
+  const earliest = new Date(iso(-PERFORMANCE_DAYS) + 'T00:00:00').getTime()
+  const latest = new Date(AS_OF + 'T00:00:00').getTime()
+  const start = Math.max(new Date(from + 'T00:00:00').getTime(), earliest)
+  const end = Math.min(new Date(to + 'T00:00:00').getTime(), latest)
+  if (end < start) return { unitsSold: 0, unitsAvailable: 0, windowDays: 0 }
+
+  const windowDays = Math.round((end - start) / MS_PER_DAY) + 1
+  let unitsSold = 0
+  for (const loc of locations) {
+    for (let t = start; t <= end; t += MS_PER_DAY) {
+      unitsSold += unitsOnDay(itemNumber, loc, new Date(t))
+    }
+  }
+  const onHand = locations.reduce((sum, loc) => sum + onHandAt(itemNumber, loc), 0)
+  return { unitsSold, unitsAvailable: unitsSold + onHand, windowDays }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 6 · Reconciliation
 // ═══════════════════════════════════════════════════════════════════════
 // Surfaced on the Setup page so the numbers can be defended live if someone
 // interrogates them. Derived from the data above — never typed in by hand.
@@ -717,6 +984,17 @@ export function reconciliation(marginTarget: number): ReconciliationLine[] {
   const avg = (ls: PricingSetupLine[]) =>
     ls.length ? ls.reduce((s, l) => s + lineMarginPct(l), 0) / ls.length : 0
 
+  // Blended sell-through over the trailing 90 days, across every location.
+  const allLocs = LOCATIONS.map((l) => l.code)
+  let sold = 0
+  let available = 0
+  for (const item of new Set(PRICING_SETUP.map((l) => l.itemNumber))) {
+    const p = performanceFor(item, allLocs, iso(-90), AS_OF)
+    sold += p.unitsSold
+    available += p.unitsAvailable
+  }
+  const overallSellThrough = available > 0 ? (sold / available) * 100 : 0
+
   return [
     { label: 'As-of date', value: AS_OF },
     { label: 'Price overrides on file', value: String(PRICE_OVERRIDES.length) },
@@ -728,5 +1006,10 @@ export function reconciliation(marginTarget: number): ReconciliationLine[] {
     { label: 'Price history records', value: `${PRICE_HISTORY.length} across ${new Set(PRICE_HISTORY.map((r) => r.scopeId)).size} price scopes` },
     { label: 'Store estate', value: `${STORES.length} locations · ${STORES.filter((s) => s.state === 'FL').length} FL, ${STORES.filter((s) => s.state === 'AL').length} AL` },
     { label: 'Vendor programs', value: String(VENDOR_PROGRAMS.length) },
+    { label: 'Sales history generated', value: `${PERFORMANCE_DAYS} days x ${LOCATIONS.length} locations, seeded` },
+    {
+      label: 'Trailing 90-day sell-through (all locations)',
+      value: `${overallSellThrough.toFixed(1)}%`,
+    },
   ]
 }

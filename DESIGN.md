@@ -65,6 +65,7 @@ separate everywhere — `lineBelowMap` vs `lineBreachesMap`.
 | **Overview** | Where is margin leaking right now, and how much is at risk? |
 | **Override Audit** | Which register overrides went too thin — and which broke a vendor MAP floor? Email the user or raise a D365 case. |
 | **Margin Threshold Test** | Find *all* pricing setup at or below a margin % across a date range, then let the agent solve base price / margin component / discount to reach a target — optionally held at or above MAP. |
+| **Price Updates** | Rank the retail book by how it is actually selling — sell-through, sales velocity, weeks of supply, margin — then roll a price change out to chosen stores or a whole region. |
 | **Price History** | For one product and one *price scope*, every price change and the window it was live for. |
 | **Recommendations** | Markdown timing, price increases, kiosk uplifts, and vendor program guidance, with accept/dismiss. |
 | **Setup** | D365 connection, margin guardrails, follow-up actions, assistant transport, and a live **data reconciliation** block. |
@@ -75,7 +76,51 @@ program's MAP schedule (`VP-QUIK`). The same product carries different history
 in different scopes — the Quiksilver boardshort has both a retail list history
 and a Quiksilver MAP history, and reading them side by side is the point.
 
-## 4. The dataset
+## 4. Price Updates vs. Margin Threshold Test
+
+The two grids look similar and answer different questions.
+
+- **Margin Threshold Test** asks *which prices are too thin.* It works on the
+  whole book, retail and vendor, and its unit of analysis is the price record.
+- **Price Updates** asks *which prices the sell-through says are wrong.* It
+  works on the retail book only — those are the prices that carry a store
+  presence and therefore a sell-through — and joins each price record to how
+  the item actually sold in the locations you have selected.
+
+Price Updates adds three things the threshold test does not have:
+
+**Store scope.** Every retail price record carries the locations it applies to
+(`storeCodes`). Selecting stores filters the grid *and* re-computes every
+performance figure over just those locations. A price that only exists on
+alvinsisland.com disappears when you deselect Ecommerce.
+
+**Performance columns.** Sell-through (units sold ÷ units available), sales
+velocity (units per day / week / month, switchable), and weeks of supply.
+Velocity is shown as a total with a per-location figure underneath, because a
+line stocked in ten stores and one stocked only on the site are not otherwise
+comparable — the "slowest mover" KPI ranks per location for the same reason.
+
+**Roll-out and multiplier.** The reprice modal — shared with the threshold test
+as `RepriceModal` — gains an org-hierarchy picker (pick "Florida Panhandle" and
+the change applies to the five stores under it) and a second pricing method:
+instead of solving to a target margin, apply a flat percentage move to the
+current price. Both methods then solve the same chosen price component, and the
+preview shows the resulting **new sales price** alongside the new margin.
+
+The two extra features are enabled per-page via `showRollout` / `showMultiplier`,
+so the threshold test keeps its original, simpler modal. Flip either prop on to
+give it the same controls.
+
+### Weeks of supply
+
+Cover is measured against a **trailing 28-day run rate** (`coverWeeksFor`), not
+against whatever window the user is filtering to. This matters: a 90-day window
+ending in September still spans peak summer, so measuring cover against it would
+flatter every slow mover — the boardshorts would read 7 weeks instead of 14.
+Merchants forecast forward on recent velocity, and the demo has to agree with
+itself when the Recommendations page says 14 weeks.
+
+## 5. The dataset
 
 `src/data/mockData.ts` is the single source of truth. Every figure is
 synthetic and hand-built to tie out:
@@ -91,6 +136,18 @@ synthetic and hand-built to tie out:
   contrast is why the MAP column exists.
 - **8 price history records** across 5 price scopes, with no gaps in the
   active-from/active-to chain.
+
+- **Unit sales are generated, not listed.** Price Updates needs an arbitrary
+  date window over 18 items x 11 locations, which is not something to hand-write.
+  A seeded PRNG keyed on (item, location, day) produces daily units from a
+  per-item base rate, scaled by store size, Gulf Coast seasonality (spring break,
+  peak summer, the drop after Labor Day) and day of week. It is fully
+  reproducible — the same demo shows the same numbers twice — and any date range
+  sums identically every time.
+- On-hand is sized so each item carries a designed **weeks of supply** at its
+  recent run rate. That is what makes the boardshorts land at 14 weeks and the
+  souvenir tees at 3, and it is why sell-through spreads from 52% (branded
+  boardshorts) to 83% (souvenir tees) rather than clustering.
 
 The Setup page renders a reconciliation table computed from the data at
 runtime, so the numbers can be defended live if someone interrogates them.
@@ -114,7 +171,7 @@ invented: staff names, order numbers, program numbers, and the pricing decisions
 themselves. No real person or organisation is shown making a bad call. Vendor
 brands appear only as counterparties setting normal MAP and co-op terms.
 
-## 5. Design system
+## 6. Design system
 
 Tokens in `src/styles/theme.css`, lifted to match the Retail Product Creation
 workspace.
@@ -136,7 +193,7 @@ the mono stack.
 Radii are 6/8/12px, cards carry a soft two-layer shadow, and the gold "A" tile
 in the sidebar is the same mark as the favicon.
 
-## 6. Running it
+## 7. Running it
 
 ```
 npm install
@@ -148,7 +205,7 @@ Deploys to GitHub Pages via `.github/workflows/deploy.yml`. `vite.config.ts`
 uses a relative `base` so it works from any Pages path, and routing is hash-based
 for the same reason.
 
-## 7. Retargeting to another prospect
+## 8. Retargeting to another prospect
 
 1. Edit `BRAND` and `AS_OF` in `src/lib/config.ts`.
 2. Replace the product catalogue, stores, and vendor programs in

@@ -27,6 +27,12 @@ const CARDS = [
     body: 'Find all pricing setup at or below a margin % across the retail estate and the vendor programs — then let the agent draft new prices, uplifts, or discounts.',
   },
   {
+    to: '/price-updates',
+    glyph: '↗',
+    title: 'Price Updates',
+    body: 'Rank the retail book by sell-through and sales velocity, then roll a price change out to chosen stores or a region — solved to a margin, or as a flat % move.',
+  },
+  {
     to: '/price-history',
     glyph: '⧖',
     title: 'Price History',

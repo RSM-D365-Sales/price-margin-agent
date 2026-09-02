@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell'
 import { Overview } from './pages/Overview'
 import { Overrides } from './pages/Overrides'
 import { ThresholdTest } from './pages/ThresholdTest'
+import { PriceUpdates } from './pages/PriceUpdates'
 import { PriceHistory } from './pages/PriceHistory'
 import { Recommendations } from './pages/Recommendations'
 import { Setup } from './pages/Setup'
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/" element={<Overview />} />
           <Route path="/overrides" element={<Overrides />} />
           <Route path="/threshold-test" element={<ThresholdTest />} />
+          <Route path="/price-updates" element={<PriceUpdates />} />
           <Route path="/price-history" element={<PriceHistory />} />
           <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/setup" element={<Setup />} />

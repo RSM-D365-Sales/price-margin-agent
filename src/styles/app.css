@@ -952,6 +952,60 @@
   color: var(--ink-600);
 }
 
+/* ═══ location chip selector (Price Updates) ═════════════════════════ */
+.chip-select {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.loc-chip {
+  appearance: none;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--ink-200);
+  background: var(--surface);
+  color: var(--ink-600);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.loc-chip:hover {
+  border-color: var(--ink-300);
+  color: var(--navy-900);
+}
+
+.loc-chip.on {
+  background: var(--navy-800);
+  border-color: var(--navy-800);
+  color: #fff;
+}
+
+/* region quick-picks read as a tier above individual stores */
+.loc-chip.region {
+  border-style: dashed;
+}
+
+.loc-chip.region.on {
+  background: var(--gold-400);
+  border-color: var(--gold-500);
+  border-style: solid;
+  color: var(--navy-900);
+  font-weight: 600;
+}
+
+.chip-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 20px;
+  background: var(--ink-200);
+  margin: 0 4px;
+}
+
 /* ═══ callout banner ═════════════════════════════════════════════════ */
 .callout {
   display: flex;
