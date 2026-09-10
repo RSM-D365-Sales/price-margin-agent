@@ -37,16 +37,15 @@ import { lineMarginPct, lineBreachesMap } from '../models/types'
 // ═══════════════════════════════════════════════════════════════════════
 
 export const STORES: StoreLocation[] = [
-  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL', region: 'RGN-PAN' },
-  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL', region: 'RGN-PAN' },
-  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL', region: 'RGN-PAN' },
-  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL', region: 'RGN-PAN' },
-  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL', region: 'RGN-PAN' },
-  { code: 'ST-MAD', name: 'Madeira Beach, FL', state: 'FL', region: 'RGN-GULF' },
-  { code: 'ST-CLW', name: 'Clearwater Beach, FL', state: 'FL', region: 'RGN-GULF' },
-  { code: 'ST-DAY', name: 'Daytona Beach, FL', state: 'FL', region: 'RGN-ATL' },
-  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL', region: 'RGN-ALA' },
-  { code: 'ST-ORB', name: 'Orange Beach, AL', state: 'AL', region: 'RGN-ALA' },
+  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL', region: 'RGN-STD' },
+  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL', region: 'RGN-STD' },
+  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL', region: 'RGN-STD' },
+  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL', region: 'RGN-STD' },
+  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL', region: 'RGN-STD' },
+  { code: 'ST-PEN', name: 'Pensacola, FL', state: 'FL', region: 'RGN-HIGH' },
+  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL', region: 'RGN-HIGH' },
+  { code: 'ST-CCB', name: 'Cocoa Beach, FL', state: 'FL', region: 'RGN-OUT' },
+  { code: 'ST-SOB', name: 'South Beach, FL', state: 'FL', region: 'RGN-SOB' },
 ]
 
 /** The ecommerce channel behaves as a location for pricing and sell-through. */
@@ -60,39 +59,39 @@ export const LOCATIONS: { code: string; name: string; region: string }[] = [
 
 /**
  * Organisation hierarchy. Price updates roll out against a node here — pick
- * "Florida Panhandle" and the change applies to the five stores under it.
+ * "Retail Standard" and the change applies to the five stores under it.
  */
 export const ORG_HIERARCHY: OrgNode = {
   code: 'ALL',
   name: 'All locations',
   children: [
     {
-      code: 'RGN-PAN',
-      name: 'Florida Panhandle',
-      children: STORES.filter((s) => s.region === 'RGN-PAN').map((s) => ({ code: s.code, name: s.name })),
+      code: 'RGN-STD',
+      name: 'Retail Standard',
+      children: STORES.filter((s) => s.region === 'RGN-STD').map((s) => ({ code: s.code, name: s.name })),
     },
     {
-      code: 'RGN-GULF',
-      name: 'Gulf Coast Florida',
-      children: STORES.filter((s) => s.region === 'RGN-GULF').map((s) => ({ code: s.code, name: s.name })),
+      code: 'RGN-HIGH',
+      name: 'High Stores',
+      children: STORES.filter((s) => s.region === 'RGN-HIGH').map((s) => ({ code: s.code, name: s.name })),
     },
     {
-      code: 'RGN-ATL',
-      name: 'Atlantic Florida',
-      children: STORES.filter((s) => s.region === 'RGN-ATL').map((s) => ({ code: s.code, name: s.name })),
+      code: 'RGN-OUT',
+      name: 'Outlets',
+      children: STORES.filter((s) => s.region === 'RGN-OUT').map((s) => ({ code: s.code, name: s.name })),
     },
     {
-      code: 'RGN-ALA',
-      name: 'Alabama Coast',
-      children: STORES.filter((s) => s.region === 'RGN-ALA').map((s) => ({ code: s.code, name: s.name })),
+      code: 'RGN-SOB',
+      name: 'South Beach',
+      children: STORES.filter((s) => s.region === 'RGN-SOB').map((s) => ({ code: s.code, name: s.name })),
     },
     { code: 'RGN-ECOM', name: 'Ecommerce', children: [{ code: ECOM_CODE, name: 'alvinsisland.com' }] },
   ],
 }
 
 const ALL_STORE_CODES = STORES.map((s) => s.code)
-const GULF_COAST = ALL_STORE_CODES.filter((c) => c !== 'ST-DAY')
-const PANHANDLE = STORES.filter((s) => s.region === 'RGN-PAN').map((s) => s.code)
+const GULF_COAST = ALL_STORE_CODES.filter((c) => c !== 'ST-CCB' && c !== 'ST-SOB')
+const RETAIL_STANDARD = STORES.filter((s) => s.region === 'RGN-STD').map((s) => s.code)
 
 /** Vendor programs the branded assortment is bought under. */
 export const VENDOR_PROGRAMS = [
@@ -148,7 +147,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
   },
   {
     id: 'OVR-005', orderNumber: 'SO-241344', orderDate: iso(-12),
-    channel: 'Store', storeOrSite: 'Orange Beach, AL',
+    channel: 'Store', storeOrSite: 'South Beach, FL',
     styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
     category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
     unitCost: 15.0, originalPrice: 29.99, overridePrice: 17.99, mapFloor: 26.99,
@@ -172,7 +171,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
   },
   {
     id: 'OVR-008', orderNumber: 'SO-240918', orderDate: iso(-22),
-    channel: 'Store', storeOrSite: 'Clearwater Beach, FL',
+    channel: 'Store', storeOrSite: 'Pensacola, FL',
     styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
     category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
     unitCost: 4.75, originalPrice: 19.99, overridePrice: 12.99,
@@ -180,7 +179,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
   },
   {
     id: 'OVR-009', orderNumber: 'SO-240766', orderDate: iso(-26),
-    channel: 'Store', storeOrSite: 'Madeira Beach, FL',
+    channel: 'Store', storeOrSite: 'Cocoa Beach, FL',
     styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
     category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
     unitCost: 20.0, originalPrice: 39.99, overridePrice: 25.99, mapFloor: 35.99,
@@ -188,7 +187,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
   },
   {
     id: 'OVR-010', orderNumber: 'SO-240612', orderDate: iso(-31),
-    channel: 'Store', storeOrSite: 'Daytona Beach, FL',
+    channel: 'Store', storeOrSite: 'South Beach, FL',
     styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
     category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
     unitCost: 13.4, originalPrice: 44.99, overridePrice: 24.99,
@@ -252,7 +251,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
   },
   {
     id: 'OVR-018', orderNumber: 'SO-238904', orderDate: iso(-104),
-    channel: 'Store', storeOrSite: 'Orange Beach, AL',
+    channel: 'Store', storeOrSite: 'Pensacola, FL',
     styleName: 'Gulf Shores, AL Sunset Tank', itemNumber: 'AI-6208',
     category: 'Souvenirs', productLine: 'Own label', colorSize: 'Sand / M',
     unitCost: 4.6, originalPrice: 18.99, overridePrice: 11.99,
@@ -338,13 +337,13 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-11), validTo: iso(40),
   },
   {
-    id: 'PRC-RTL-06', mode: 'Retail', channel: 'Store', channelDetail: 'Panhandle stores',
-    storeCodes: PANHANDLE,
+    id: 'PRC-RTL-06', mode: 'Retail', channel: 'Store', channelDetail: 'Retail Standard stores',
+    storeCodes: RETAIL_STANDARD,
     styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
     category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
     quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 30,
     discount: {
-      name: 'Swim Season Flush · Panhandle', type: 'Line',
+      name: 'Swim Season Flush · Retail Standard', type: 'Line',
       validFrom: iso(-8), validTo: iso(30),
     },
     autoCharge: 0, unitCost: 15.0, vendorAllowancePct: 10, mapFloor: 26.99,
@@ -369,8 +368,8 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-180), validTo: iso(180),
   },
   {
-    id: 'PRC-RTL-09', mode: 'Retail', channel: 'Store', channelDetail: 'Clearance / outlet stores',
-    storeCodes: ['ST-FWB', 'ST-DAY'],
+    id: 'PRC-RTL-09', mode: 'Retail', channel: 'Store', channelDetail: 'Outlet stores',
+    storeCodes: ['ST-CCB'],
     styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
     category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
     quantity: 1, basePrice: 29.99, marginComponent: -6.0, discountPct: 25,
@@ -409,7 +408,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   },
   {
     id: 'PRC-RTL-12', mode: 'Retail', channel: 'Store', channelDetail: 'Resort & kiosk locations',
-    storeCodes: ['ST-DEST', 'ST-PNS', 'ST-GSH', 'ST-ORB'],
+    storeCodes: ['ST-DEST', 'ST-PNS', 'ST-GSH', 'ST-SOB'],
     styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
     category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
     quantity: 1, basePrice: 24.99, marginComponent: 3.0, discountPct: 0,
@@ -691,7 +690,7 @@ export const RECOMMENDATIONS: Recommendation[] = [
     title: 'Three lines price below MAP with no active waiver',
     detail:
       'Two Roxy tie-side records (store and program) and the Rip Curl Surflite are below their vendor MAP floors. The Rip Curl waiver expired and the price was never restored.',
-    bullets: ['Restore Rip Curl Surflite to the $49.49 floor', 'Request a Roxy waiver or pull the Panhandle flush back to $26.99'],
+    bullets: ['Restore Rip Curl Surflite to the $49.49 floor', 'Request a Roxy waiver or pull the Retail Standard flush back to $26.99'],
     impact: 'Clears 3 open agreement breaches', confidence: 'High', status: 'Open',
   },
   {
@@ -760,7 +759,7 @@ export const CATEGORIES = [
 // 5 · Sales performance (seeded, deterministic)
 // ═══════════════════════════════════════════════════════════════════════
 // Unit sales are generated rather than listed, because the Price Updates page
-// needs an arbitrary date window and 18 items x 11 locations x 200 days is not
+// needs an arbitrary date window and 18 items x 10 locations x 200 days is not
 // something to hand-write. The generator is seeded off (item, location, day),
 // so it is fully reproducible — the same demo shows the same numbers twice —
 // and any date range sums the same way every time.
@@ -822,12 +821,11 @@ const LOCATION_WEIGHT: Record<string, number> = {
   'ST-PCB': 1.5,
   'ST-DEST': 1.3,
   'ST-GSH': 1.2,
-  'ST-ORB': 1.1,
-  'ST-CLW': 1.1,
+  'ST-PEN': 1.2,
+  'ST-SOB': 1.1,
   'ST-PNS': 1.0,
-  'ST-DAY': 1.0,
+  'ST-CCB': 0.9,
   'ST-FWB': 0.9,
-  'ST-MAD': 0.8,
   'ST-NAV': 0.7,
   ECOM: 2.2,
 }

@@ -35,8 +35,8 @@ pressure to mark everything down at once.
 ## 2. The two pricing modes
 
 **Retail** — alvinsisland.com plus the store estate. Alvin's Island sets the
-price. Channels are ecommerce, all-stores, regional clusters (Panhandle),
-clearance/outlet, and resort & kiosk locations (which carry a price uplift).
+price. Channels are ecommerce, all-stores, price groups (Retail Standard,
+High Stores), outlets, and resort & kiosk locations (which carry a price uplift).
 
 **Vendor programs** — the branded assortment is bought under brand programs.
 The brand sets:
@@ -101,7 +101,7 @@ line stocked in ten stores and one stocked only on the site are not otherwise
 comparable — the "slowest mover" KPI ranks per location for the same reason.
 
 **Roll-out and multiplier.** The reprice modal — shared with the threshold test
-as `RepriceModal` — gains an org-hierarchy picker (pick "Florida Panhandle" and
+as `RepriceModal` — gains an org-hierarchy picker (pick "Retail Standard" and
 the change applies to the five stores under it) and a second pricing method:
 instead of solving to a target margin, apply a flat percentage move to the
 current price. Both methods then solve the same chosen price component, and the
