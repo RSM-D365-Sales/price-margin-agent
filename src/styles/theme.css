@@ -1,89 +1,102 @@
-/* ── Alvin's Island design system ───────────────────────────────────────
-   Matches the Retail Product Creation workspace: deep navy + beach gold on
-   a cool grey ground, Poppins throughout, white cards with soft borders.
-   Palette is the coast — navy water, gold sun, sand, ocean blue. */
+/* ── bluestem design system ─────────────────────────────────────────────
+   Bluestem Fresh Produce, per ../Blustem-company-details/BRAND_GUIDE.md.
+   Palette is borrowed from rsmus.com so the app reads as RSM-built:
+   Midnight chrome, RSM Blue for actions / links / active nav, RSM Green
+   reserved for success and on-target, Harvest Amber for warnings, Signal
+   Red for errors. Poppins SemiBold for headings, Segoe UI for body and
+   grids (matches D365 F&SC). Deliberate single light look. */
 
 @import './fonts.css';
 
 :root {
-  /* ── navy · primary brand + chrome ── */
-  --navy-950: #061322;
-  --navy-900: #0b1f36;
-  --navy-800: #0b304d;
-  --navy-700: #143351;
-  --navy-100: #d9e1ec;
-  --navy-50: #eef2f7;
+  /* ── midnight · chrome, headings, dark surfaces ── */
+  --midnight-950: #000d26;
+  --midnight-900: #00153d; /* Midnight */
+  --midnight-800: #0b2454; /* Midnight surface */
+  --midnight-700: #123066;
+  --midnight-100: #d6dce8;
+  --midnight-50: #edf0f6;
 
-  /* ── gold · accent, the sun in the mark ── */
-  --gold-800: #5f4211;
-  --gold-600: #a6771f;
-  --gold-500: #c4922a;
-  --gold-400: #d9a93b;
-  --gold-300: #e9c35a;
-  --gold-200: #f3d98a;
-  --gold-100: #faedc0;
-  --gold-50: #fdf8e8;
+  /* ── blue · RSM Blue, the "blue" in the wordmark ── */
+  --blue-800: #005a82;
+  --blue-700: #006691;
+  --blue-600: #0079ad; /* RSM Blue deepened for AA text contrast */
+  --blue-500: #009cde; /* RSM Blue */
+  --blue-300: #66c4eb;
+  --blue-200: #b3e1f5;
+  --blue-100: #e5f5fc; /* Light Sky */
+  --blue-50: #f2fafd;
 
-  /* ── ink · neutral text + lines ── */
-  --ink-800: #333c4b;
-  --ink-700: #3c4759;
-  --ink-600: #4a586c;
-  --ink-500: #5f6e85;
-  --ink-400: #8190a4;
-  --ink-300: #aeb6c5;
-  --ink-200: #d5dae3;
-  --ink-100: #eceef2;
-  --ink-50: #f6f7f9;
+  /* ── green · RSM Green, the leaf. Status only: success / on-target ── */
+  --green-800: #235a1e;
+  --green-700: #2b6e24;
+  --green-500: #3f9c35; /* RSM Green */
+  --green-200: #bfe0ba;
+  --green-100: #e2f1df;
+  --green-50: #f1f8f0;
 
-  /* ── sand · warm neutral for own-label / souvenir accents ── */
-  --sand-200: #e8dcc0;
-  --sand-100: #f3ecdc;
-  --sand-50: #faf7f0;
+  /* ── grey · Mid Grey neutrals, text + lines ── */
+  --grey-800: #2f3338;
+  --grey-700: #3f444a;
+  --grey-600: #4e5359;
+  --grey-500: #6f7375; /* Mid Grey, darkened for small text */
+  --grey-400: #888b8d; /* Mid Grey */
+  --grey-300: #b3b6b8;
+  --grey-200: #d7d9db;
+  --grey-100: #e8e9ea;
+  --grey-50: #f2f3f4; /* Fog */
 
-  /* ── ocean · secondary informational blue ── */
-  --ocean-800: #0f3b5e;
-  --ocean-700: #114b7a;
-  --ocean-600: #155f9a;
-  --ocean-500: #1c75bc;
-  --ocean-200: #b5d4ee;
-  --ocean-100: #dcebf7;
-  --ocean-50: #eef5fb;
+  /* ── ink · legacy aliases used by inline styles in the pages ── */
+  --ink-800: var(--grey-800);
+  --ink-700: var(--grey-700);
+  --ink-600: var(--grey-600);
+  --ink-500: var(--grey-500);
+  --ink-400: var(--grey-400);
+  --ink-300: var(--grey-300);
+  --ink-200: var(--grey-200);
+  --ink-100: var(--grey-100);
+  --ink-50: var(--grey-50);
 
   /* ── status ── */
-  --critical: #d03b3b;
-  --critical-text: #b02a2a;
-  --critical-soft: #fef2f2;
-  --good: #0ca30c;
-  --good-text: #0a7d0a;
-  --good-soft: #f0fdf4;
-  --warning: #fab219;
-  --warning-text: #8a5a00;
-  --warning-soft: #fffbeb;
+  --critical: #d0342c; /* Signal Red */
+  --critical-text: #a8281f;
+  --critical-soft: #fdf1f0;
+  --good: #3f9c35; /* RSM Green */
+  --good-text: #2b6e24;
+  --good-soft: #f1f8f0;
+  --warning: #f2a900; /* Harvest Amber */
+  --warning-text: #7a5300;
+  --warning-soft: #fff8e5;
 
   /* ── semantic aliases ── */
-  --bg: #f3f5f8;
+  --bg: var(--grey-50);
   --surface: #ffffff;
-  --ink: var(--navy-900);
-  --ink-2: var(--ink-600);
-  --ink-3: var(--ink-400);
-  --line: var(--ink-100);
-  --line-2: var(--ink-200);
-  --accent: var(--gold-400);
-  --accent-2: var(--gold-600);
+  --ink: var(--midnight-900);
+  --ink-2: var(--grey-600);
+  --ink-3: var(--grey-500);
+  --line: var(--grey-100);
+  --line-2: var(--grey-200);
+  --accent: var(--blue-600);
+  --accent-hover: var(--blue-700);
+  --accent-soft: var(--blue-100);
 
   /* ── type ── */
-  --font-ui: 'Poppins', 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+  --font-ui: 'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif;
+  --font-head: 'Poppins', 'Segoe UI', system-ui, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', Consolas, 'Courier New', monospace;
 
   /* ── layout ── */
+  --ribbon-height: 52px;
   --nav-width: 236px;
   --chat-width: 384px;
   --radius-sm: 6px;
   --radius: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
-  --shadow: 0 1px 2px rgba(11, 31, 54, 0.05), 0 1px 3px rgba(11, 31, 54, 0.07);
-  --shadow-lg: 0 12px 32px -12px rgba(11, 31, 54, 0.28);
+  --shadow: 0 1px 2px rgba(0, 21, 61, 0.05), 0 1px 4px rgba(0, 21, 61, 0.06);
+  --shadow-lg: 0 12px 32px -12px rgba(0, 21, 61, 0.3);
+
+  color-scheme: light;
 }
 
 * {
@@ -109,10 +122,10 @@ body {
 h1,
 h2,
 h3 {
-  font-family: var(--font-ui);
+  font-family: var(--font-head);
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: var(--navy-900);
+  color: var(--midnight-900);
   margin: 0;
 }
 
@@ -137,13 +150,13 @@ button {
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--ink-400);
+  color: var(--grey-500);
 }
 
 /* card */
 .card {
   background: var(--surface);
-  border: 1px solid var(--ink-200);
+  border: 1px solid var(--grey-200);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
@@ -155,53 +168,50 @@ button {
   gap: 6px;
   padding: 2px 10px;
   border-radius: 999px;
-  border: 1px solid var(--ink-200);
-  background: var(--ink-50);
+  border: 1px solid var(--grey-200);
+  background: var(--grey-50);
   font-size: 11.5px;
   font-weight: 500;
-  color: var(--ink-600);
+  color: var(--grey-600);
   white-space: nowrap;
 }
 
-.pill.gold {
-  background: var(--gold-50);
-  border-color: var(--gold-200);
-  color: var(--gold-800);
+/* brand blue — informational highlight */
+.pill.blue {
+  background: var(--blue-100);
+  border-color: var(--blue-200);
+  color: var(--blue-800);
 }
 
-.pill.navy {
-  background: var(--navy-50);
-  border-color: var(--navy-100);
-  color: var(--navy-800);
+/* midnight — branded / vendor-set */
+.pill.midnight {
+  background: var(--midnight-50);
+  border-color: var(--midnight-100);
+  color: var(--midnight-900);
 }
 
-.pill.ocean {
-  background: var(--ocean-50);
-  border-color: var(--ocean-200);
-  color: var(--ocean-800);
-}
-
-.pill.sand {
-  background: var(--sand-50);
-  border-color: var(--sand-200);
-  color: var(--gold-800);
+/* neutral — own-label */
+.pill.grey {
+  background: var(--grey-100);
+  border-color: var(--grey-200);
+  color: var(--grey-700);
 }
 
 .pill.good {
   background: var(--good-soft);
-  border-color: rgba(12, 163, 12, 0.35);
+  border-color: rgba(63, 156, 53, 0.4);
   color: var(--good-text);
 }
 
 .pill.warn {
   background: var(--warning-soft);
-  border-color: rgba(250, 178, 25, 0.55);
+  border-color: rgba(242, 169, 0, 0.55);
   color: var(--warning-text);
 }
 
 .pill.critical {
   background: var(--critical-soft);
-  border-color: rgba(208, 59, 59, 0.4);
+  border-color: rgba(208, 52, 44, 0.4);
   color: var(--critical-text);
 }
 
@@ -214,19 +224,19 @@ button {
   white-space: nowrap;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--navy-800);
-  background: var(--navy-800);
+  border: 1px solid var(--midnight-900);
+  background: var(--midnight-900);
   color: #fff;
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--navy-900);
-  border-color: var(--navy-900);
+  background: var(--midnight-800);
+  border-color: var(--midnight-800);
 }
 
 .btn:disabled {
@@ -234,28 +244,28 @@ button {
   cursor: not-allowed;
 }
 
-/* gold = the affirmative / execute action */
-.btn.gold {
-  background: var(--gold-400);
-  border-color: var(--gold-500);
-  color: var(--navy-900);
-  font-weight: 600;
+/* RSM Blue = the affirmative / execute action */
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
-.btn.gold:hover:not(:disabled) {
-  background: var(--gold-300);
-  border-color: var(--gold-400);
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn.ghost {
   background: var(--surface);
-  color: var(--navy-800);
-  border-color: var(--ink-200);
+  color: var(--midnight-900);
+  border-color: var(--grey-200);
+  font-weight: 500;
 }
 
 .btn.ghost:hover:not(:disabled) {
-  background: var(--ink-50);
-  border-color: var(--ink-300);
+  background: var(--grey-50);
+  border-color: var(--grey-300);
 }
 
 .btn.small {
@@ -269,9 +279,9 @@ button {
 textarea.input {
   font-family: var(--font-ui);
   font-size: 13px;
-  color: var(--navy-900);
+  color: var(--midnight-900);
   background: var(--surface);
-  border: 1px solid var(--ink-200);
+  border: 1px solid var(--grey-200);
   border-radius: var(--radius-sm);
   padding: 7px 10px;
   outline: none;
@@ -281,8 +291,8 @@ textarea.input {
 .input:focus,
 .select:focus,
 textarea.input:focus {
-  border-color: var(--ocean-500);
-  box-shadow: 0 0 0 3px var(--ocean-100);
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
 }
 
 .field {
@@ -296,11 +306,11 @@ textarea.input:focus {
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--ink-400);
+  color: var(--grey-500);
 }
 
 input[type='checkbox'] {
-  accent-color: var(--navy-800);
+  accent-color: var(--accent);
   width: 15px;
   height: 15px;
   cursor: pointer;
@@ -313,7 +323,7 @@ input[type='checkbox'] {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--ink-200);
+  background: var(--grey-200);
   border-radius: 8px;
   border: 2px solid var(--bg);
 }

@@ -1,4 +1,8 @@
-// ── Alvin's Island · Pricing & Margin Agent · demo dataset ──────────────
+// ── Pricing & Margin Workspace · demo dataset ────────────────────────────
+//
+// NOTE (Sep 2026): the app is branded for Bluestem Fresh Produce, but this
+// dataset is still the coastal beachwear retail book it was first built on.
+// Retargeting it to produce is a domain rethink — see DESIGN.md §8.
 //
 // This file is the single source of truth for the demo. Every figure here is
 // synthetic and hand-built to be internally consistent:
@@ -15,7 +19,7 @@
 // and the entire dataset — order dates, price windows, markdown waves, MAP
 // waivers — slides with it. Nothing here is hardcoded to a calendar date.
 //
-// Store locations are Alvin's Island's real coastal estate. Staff names,
+// Store locations are a real Gulf Coast retail estate (from the original build). Staff names,
 // order numbers, customer-facing incidents and vendor program numbers are
 // invented; no real person is portrayed as making a bad pricing call.
 
@@ -54,7 +58,7 @@ export const ECOM_CODE = 'ECOM'
 /** Every sellable location: the store estate plus the site. */
 export const LOCATIONS: { code: string; name: string; region: string }[] = [
   ...STORES.map((s) => ({ code: s.code, name: s.name, region: s.region })),
-  { code: ECOM_CODE, name: 'alvinsisland.com', region: 'RGN-ECOM' },
+  { code: ECOM_CODE, name: 'bluestemfresh.com', region: 'RGN-ECOM' },
 ]
 
 /**
@@ -85,7 +89,7 @@ export const ORG_HIERARCHY: OrgNode = {
       name: 'South Beach',
       children: STORES.filter((s) => s.region === 'RGN-SOB').map((s) => ({ code: s.code, name: s.name })),
     },
-    { code: 'RGN-ECOM', name: 'Ecommerce', children: [{ code: ECOM_CODE, name: 'alvinsisland.com' }] },
+    { code: 'RGN-ECOM', name: 'Ecommerce', children: [{ code: ECOM_CODE, name: 'bluestemfresh.com' }] },
   ],
 }
 
@@ -119,15 +123,15 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
     category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
     unitCost: 25.0, originalPrice: 49.99, overridePrice: 29.99, mapFloor: 44.99,
-    reasonCode: 'Price Match', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
+    reasonCode: 'Price Match', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
   },
   {
     id: 'OVR-002', orderNumber: 'SO-241790', orderDate: iso(-4),
-    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
     styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
     category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
     unitCost: 12.75, originalPrice: 39.99, overridePrice: 27.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
+    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
   },
   {
     id: 'OVR-003', orderNumber: 'SO-241655', orderDate: iso(-6),
@@ -135,7 +139,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
     category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
     unitCost: 32.0, originalPrice: 59.99, overridePrice: 54.99, mapFloor: 54.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
+    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
   },
   {
     id: 'OVR-004', orderNumber: 'SO-241503', orderDate: iso(-9),
@@ -143,7 +147,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
     unitCost: 8.2, originalPrice: 29.99, overridePrice: 19.99,
-    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
+    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
   },
   {
     id: 'OVR-005', orderNumber: 'SO-241344', orderDate: iso(-12),
@@ -151,7 +155,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
     category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
     unitCost: 15.0, originalPrice: 29.99, overridePrice: 17.99, mapFloor: 26.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
+    reasonCode: 'Manager Discretion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
   },
   {
     id: 'OVR-006', orderNumber: 'SO-241201', orderDate: iso(-15),
@@ -159,23 +163,23 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
     category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
     unitCost: 4.2, originalPrice: 16.99, overridePrice: 10.0,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
   },
   {
     id: 'OVR-007', orderNumber: 'SO-241077', orderDate: iso(-18),
-    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
     styleName: 'Volcom Pucker Up Cheekini Bottom', itemNumber: 'VL-3390',
     category: 'Swimwear', productLine: 'Branded', colorSize: 'Black / S',
     unitCost: 27.5, originalPrice: 55.0, overridePrice: 38.5, mapFloor: 49.5,
-    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
+    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
   },
   {
     id: 'OVR-008', orderNumber: 'SO-240918', orderDate: iso(-22),
     channel: 'Store', storeOrSite: 'Pensacola, FL',
-    styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
+    styleName: "Logo Trucker Cap", itemNumber: 'AI-5540',
     category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
     unitCost: 4.75, originalPrice: 19.99, overridePrice: 12.99,
-    reasonCode: 'Display Sample', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@alvinsisland.com',
+    reasonCode: 'Display Sample', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@bluestemfresh.com',
   },
   {
     id: 'OVR-009', orderNumber: 'SO-240766', orderDate: iso(-26),
@@ -183,7 +187,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
     category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
     unitCost: 20.0, originalPrice: 39.99, overridePrice: 25.99, mapFloor: 35.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
+    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
   },
   {
     id: 'OVR-010', orderNumber: 'SO-240612', orderDate: iso(-31),
@@ -191,15 +195,15 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
     category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
     unitCost: 13.4, originalPrice: 44.99, overridePrice: 24.99,
-    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
+    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
   },
   {
     id: 'OVR-011', orderNumber: 'SO-240455', orderDate: iso(-36),
-    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
     styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
     category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
     unitCost: 8.9, originalPrice: 29.99, overridePrice: 19.99,
-    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
+    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
   },
   {
     id: 'OVR-012', orderNumber: 'SO-240298', orderDate: iso(-41),
@@ -207,7 +211,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
     category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
     unitCost: 27.5, originalPrice: 54.99, overridePrice: 34.99, mapFloor: 49.49,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
+    reasonCode: 'Manager Discretion', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
   },
   {
     id: 'OVR-013', orderNumber: 'SO-240134', orderDate: iso(-48),
@@ -215,7 +219,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Sea Turtle Beach Towel 30x60', itemNumber: 'AI-9020',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Multi / 30x60',
     unitCost: 6.4, originalPrice: 21.99, overridePrice: 12.99,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@alvinsisland.com',
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@bluestemfresh.com',
   },
   {
     id: 'OVR-014', orderNumber: 'SO-239977', orderDate: iso(-55),
@@ -223,15 +227,15 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Fox Racing Legacy Moth Snapback', itemNumber: 'FX-6612',
     category: 'Headwear', productLine: 'Branded', colorSize: 'Black / OS',
     unitCost: 14.0, originalPrice: 27.99, overridePrice: 24.99, mapFloor: 24.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@alvinsisland.com',
+    reasonCode: 'Event Promotion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
   },
   {
     id: 'OVR-015', orderNumber: 'SO-239741', orderDate: iso(-63),
-    channel: 'Ecommerce', storeOrSite: 'alvinsisland.com',
+    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
     styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
     category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
     unitCost: 6.1, originalPrice: 24.99, overridePrice: 16.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@alvinsisland.com',
+    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
   },
   {
     id: 'OVR-016', orderNumber: 'SO-239502', orderDate: iso(-72),
@@ -239,7 +243,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Quiksilver Original Boardshort Tee', itemNumber: 'QS-4090',
     category: 'Tees & Tanks', productLine: 'Branded', colorSize: 'White / M',
     unitCost: 12.5, originalPrice: 24.99, overridePrice: 22.49, mapFloor: 22.49,
-    reasonCode: 'Price Match', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@alvinsisland.com',
+    reasonCode: 'Price Match', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
   },
   {
     id: 'OVR-017', orderNumber: 'SO-239188', orderDate: iso(-86),
@@ -247,7 +251,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
     unitCost: 1.85, originalPrice: 9.99, overridePrice: 5.0,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@alvinsisland.com',
+    reasonCode: 'Group / Tour Rate', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
   },
   {
     id: 'OVR-018', orderNumber: 'SO-238904', orderDate: iso(-104),
@@ -255,7 +259,7 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
     styleName: 'Gulf Shores, AL Sunset Tank', itemNumber: 'AI-6208',
     category: 'Souvenirs', productLine: 'Own label', colorSize: 'Sand / M',
     unitCost: 4.6, originalPrice: 18.99, overridePrice: 11.99,
-    reasonCode: 'Display Sample', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@alvinsisland.com',
+    reasonCode: 'Display Sample', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
   },
 ]
 
@@ -268,9 +272,9 @@ export const PRICE_OVERRIDES: PriceOverride[] = [
 // than a margin one.
 
 export const PRICING_SETUP: PricingSetupLine[] = [
-  // ── Retail · alvinsisland.com + the store estate ──
+  // ── Retail · bluestemfresh.com + the store estate ──
   {
-    id: 'PRC-RTL-01', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    id: 'PRC-RTL-01', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
     storeCodes: [ECOM_CODE],
     styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
     category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
@@ -279,7 +283,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-3), validTo: iso(120),
   },
   {
-    id: 'PRC-RTL-02', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    id: 'PRC-RTL-02', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
     storeCodes: [ECOM_CODE],
     styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
     category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
@@ -324,7 +328,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-210), validTo: iso(150),
   },
   {
-    id: 'PRC-RTL-05', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    id: 'PRC-RTL-05', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
     storeCodes: [ECOM_CODE],
     styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
     category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
@@ -359,7 +363,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-300), validTo: iso(180),
   },
   {
-    id: 'PRC-RTL-08', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    id: 'PRC-RTL-08', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
     storeCodes: [ECOM_CODE],
     styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
     category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
@@ -381,7 +385,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
     validFrom: iso(-240), validTo: iso(120),
   },
   {
-    id: 'PRC-RTL-10', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'alvinsisland.com',
+    id: 'PRC-RTL-10', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
     storeCodes: [ECOM_CODE],
     styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
     category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
@@ -396,7 +400,7 @@ export const PRICING_SETUP: PricingSetupLine[] = [
   {
     id: 'PRC-RTL-11', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
     storeCodes: ALL_STORE_CODES,
-    styleName: "Alvin's Island Logo Trucker Cap", itemNumber: 'AI-5540',
+    styleName: "Logo Trucker Cap", itemNumber: 'AI-5540',
     category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
     quantity: 1, basePrice: 19.99, marginComponent: 0, discountPct: 20,
     discount: {
@@ -594,7 +598,7 @@ export const PRICE_HISTORY: PriceHistoryRecord[] = [
     productKey: 'AI-2255|Aqua / M|ECOM',
     styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
     category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
-    scopeId: 'ECOM', scopeName: 'alvinsisland.com',
+    scopeId: 'ECOM', scopeName: 'bluestemfresh.com',
     entries: [
       { id: 'PH-5-4', price: 26.99, activeFrom: iso(-11), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'End-of-season swim clearance · 40% — still clears 50% margin' },
       { id: 'PH-5-3', price: 33.74, activeFrom: iso(-40), activeTo: iso(-12), changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 1 · 25%' },

@@ -2,7 +2,7 @@
 // Rule-based router (offline default). Every number it quotes is computed from
 // the dataset at call time — nothing is written into the replies by hand.
 
-import { PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, STORES } from '../data/mockData'
+import { ECOM_CODE, LOCATIONS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, STORES } from '../data/mockData'
 import {
   overrideMarginPct,
   overrideBreachesMap,
@@ -176,7 +176,7 @@ export function askAgent(raw: string): AgentReply {
     return {
       text:
         `The estate is ${STORES.length} locations — ${STORES.filter((s) => s.state === 'FL').length} in Florida and ` +
-        `${STORES.filter((s) => s.state === 'AL').length} in Alabama — plus alvinsisland.com.\n\n` +
+        `${STORES.filter((s) => s.state === 'AL').length} in Alabama — plus ${LOCATIONS.find((l) => l.code === ECOM_CODE)?.name ?? 'the ecommerce site'}.\n\n` +
         `Stores logging the most price overrides:\n` +
         top.map(([s, n]) => `· ${s} — ${n} override${n === 1 ? '' : 's'}`).join('\n'),
     }

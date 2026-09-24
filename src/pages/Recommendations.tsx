@@ -94,7 +94,7 @@ export function Recommendations() {
             style={r.status !== 'Open' ? { opacity: 0.55 } : undefined}
           >
             <div className="rec-head">
-              <span className={`pill ${r.kind === 'MAP compliance' ? 'critical' : 'gold'}`}>
+              <span className={`pill ${r.kind === 'MAP compliance' ? 'critical' : 'blue'}`}>
                 {r.kind}
               </span>
               <span
@@ -118,7 +118,7 @@ export function Recommendations() {
             <div className="rec-actions">
               {r.status === 'Open' ? (
                 <>
-                  <button className="btn small gold" onClick={() => setStatus(r.id, 'Accepted')}>
+                  <button className="btn small primary" onClick={() => setStatus(r.id, 'Accepted')}>
                     Accept
                   </button>
                   <button className="btn small ghost" onClick={() => setStatus(r.id, 'Dismissed')}>

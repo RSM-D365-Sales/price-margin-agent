@@ -350,7 +350,7 @@ export function ThresholdTest() {
               : `displayed — reprice applies to all ${results.length}`}
           </span>
           <div className="spacer" />
-          <button className="btn gold" onClick={() => setRepriceOpen(true)}>
+          <button className="btn primary" onClick={() => setRepriceOpen(true)}>
             Draft new price →
           </button>
         </div>

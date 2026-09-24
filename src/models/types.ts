@@ -1,6 +1,6 @@
-// ── Alvin's Island · Pricing & Margin Agent · domain types ──────────────
+// ── Pricing & Margin Workspace · domain types ────────────────────────────
 // Two pricing modes:
-//   Retail — alvinsisland.com + the store estate. Alvin's Island sets the price.
+//   Retail — the ecommerce site + the store estate. The retailer sets the price.
 //   Vendor — inbound brand programs (Quiksilver, Roxy, Volcom, …). The brand
 //            sets a MAP floor and funds part of the markdown; margin is a
 //            negotiation, not a decision.

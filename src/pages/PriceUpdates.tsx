@@ -485,7 +485,7 @@ export function PriceUpdates() {
               : `displayed — reprice applies to all ${ranked.length}`}
           </span>
           <div className="spacer" />
-          <button className="btn gold" onClick={() => setRepriceOpen(true)}>
+          <button className="btn primary" onClick={() => setRepriceOpen(true)}>
             Draft new price →
           </button>
         </div>

@@ -2,14 +2,26 @@
 // Retargeting this demo to a new prospect or a new date should be an edit
 // to THIS FILE plus src/data/mockData.ts — nothing else.
 
-/** Brand the workspace is built for. */
+/**
+ * Brand the workspace is built for.
+ *
+ * Bluestem Fresh Produce is RSM's fictional mock company for the IFPA show
+ * circuit. Identity, palette, and header rules come from
+ * ../Blustem-company-details/BRAND_GUIDE.md (note the folder spelling); the
+ * persona is from employees.csv in the same kit.
+ */
 export const BRAND = {
-  name: "Alvin's Island",
-  short: 'ALVIN’S ISLAND',
-  tagline: 'Sun, sand & style',
-  site: 'alvinsisland.com',
-  legalEntity: 'ALVI',
-  emailDomain: 'alvinsisland.com',
+  /** Wordmark is lowercase by brand rule. */
+  name: 'bluestem',
+  legalName: 'Bluestem Fresh Produce, Inc.',
+  short: 'BLUESTEM',
+  /** App one-liner from PUN_BANK.md — "Price Margin Alert". */
+  tagline: 'Catch thin margins before they beet you.',
+  site: 'bluestemfresh.com',
+  legalEntity: 'BSFP',
+  emailDomain: 'bluestemfresh.com',
+  /** Who is signed in. From the Bluestem employees list — pricing sits under Sales. */
+  persona: { name: 'Priya Nair', initials: 'PN', title: 'VP Sales', site: 'GRP' },
 } as const
 
 /**

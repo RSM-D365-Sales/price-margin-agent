@@ -184,8 +184,8 @@ export function Overview() {
               alignItems: 'center',
             }}
           >
-            <span className="pill sand">Own label · {pct(stats.ownLabel)} avg margin</span>
-            <span className="pill navy">Branded · {pct(stats.branded)} avg margin</span>
+            <span className="pill grey">Own label · {pct(stats.ownLabel)} avg margin</span>
+            <span className="pill midnight">Branded · {pct(stats.branded)} avg margin</span>
             <span style={{ fontSize: 12.5, color: 'var(--ink-500)' }}>
               Own-label souvenir and beach goods absorb a deep markdown and still clear the target.
               Branded surf does not — which is why almost every failing line is branded.

@@ -128,7 +128,7 @@ export function Overrides() {
           MAP breaches only
         </label>
         <div className="spacer" />
-        <span className="pill navy">{rows.length} lines match</span>
+        <span className="pill midnight">{rows.length} lines match</span>
       </div>
 
       <div className="card table-wrap">
@@ -235,7 +235,7 @@ export function Overrides() {
               <button className="btn ghost" onClick={() => setAction(null)}>
                 Cancel
               </button>
-              <button className="btn gold" onClick={completeAction}>
+              <button className="btn primary" onClick={completeAction}>
                 {action.kind === 'email' ? 'Send email' : 'Create case'}
               </button>
             </>

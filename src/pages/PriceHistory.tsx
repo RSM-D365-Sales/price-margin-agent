@@ -100,7 +100,7 @@ export function PriceHistory() {
         {scopes.length > 1 && (
           <>
             <div className="spacer" />
-            <span className="pill ocean">{scopes.length} scopes on this product</span>
+            <span className="pill blue">{scopes.length} scopes on this product</span>
           </>
         )}
       </div>
@@ -127,10 +127,10 @@ export function PriceHistory() {
                 {record.styleName} · {record.colorSize}
               </h2>
               <div style={{ display: 'flex', gap: 8 }}>
-                <span className={`pill ${record.productLine === 'Own label' ? 'sand' : 'navy'}`}>
+                <span className={`pill ${record.productLine === 'Own label' ? 'grey' : 'midnight'}`}>
                   {record.productLine}
                 </span>
-                <span className="pill ocean">{record.scopeName}</span>
+                <span className="pill blue">{record.scopeName}</span>
               </div>
             </div>
             <div className="history-track">

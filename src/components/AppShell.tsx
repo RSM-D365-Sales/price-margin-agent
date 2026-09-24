@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ChatPanel } from './ChatPanel'
-import { BRAND, CURRENT_SEASON } from '../lib/config'
+import { BluestemLogo } from './BluestemLogo'
+import { AS_OF, BRAND, CURRENT_SEASON } from '../lib/config'
+import { shortDate } from '../lib/format'
+import rsmLogoWhite from '../assets/rsmus-logo-white.png'
 
 const NAV = [
   { to: '/', label: 'Overview', glyph: '◈', end: true },
@@ -18,16 +21,39 @@ export function AppShell() {
 
   return (
     <div className="shell">
-      <nav className="nav">
-        <div className="nav-brand">
-          <div className="mark" aria-hidden="true">
-            A
-          </div>
-          <div>
-            <div className="wordmark">{BRAND.name}</div>
-            <div className="sub">Pricing &amp; Margin</div>
-          </div>
+      {/* Title ribbon — Midnight bar per BRAND_GUIDE.md "App header pattern":
+          bluestem logo left, app name, then as-of, the RSM sponsor mark, and
+          the signed-in persona on the right. */}
+      <header className="ribbon">
+        <div className="ribbon-brand">
+          <BluestemLogo height={26} onDark />
+          <span className="ribbon-divider" aria-hidden="true" />
+          <span className="ribbon-app">Pricing &amp; Margin Workspace</span>
         </div>
+        <div className="ribbon-meta">
+          <span className="ribbon-asof">
+            {CURRENT_SEASON} · as of <b>{shortDate(AS_OF)}</b>
+          </span>
+          {/* RSM sponsor mark — required on every bluestem app (BRAND_GUIDE.md) */}
+          <span className="sponsor">
+            <span className="sponsor-label">Powered by</span>
+            <img src={rsmLogoWhite} alt="RSM" height={22} />
+          </span>
+          <span className="persona">
+            <span className="avatar" aria-hidden="true">
+              {BRAND.persona.initials}
+            </span>
+            <span className="persona-text">
+              <span className="persona-name">{BRAND.persona.name}</span>
+              <span className="persona-title">
+                {BRAND.persona.title} · {BRAND.persona.site}
+              </span>
+            </span>
+          </span>
+        </div>
+      </header>
+
+      <nav className="nav">
         <div className="nav-links">
           {NAV.map((n) => (
             <NavLink
@@ -43,7 +69,7 @@ export function AppShell() {
         </div>
         <div className="nav-foot">
           Guards margin across {BRAND.site}, the store estate, and vendor programs.
-          <span className="mode">{CURRENT_SEASON}</span>
+          <span className="mode">{BRAND.tagline}</span>
         </div>
       </nav>
 

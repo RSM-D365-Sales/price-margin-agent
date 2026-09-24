@@ -206,7 +206,7 @@ export function RepriceModal({
           <button className="btn ghost" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn gold" onClick={confirm} disabled={!canConfirm}>
+          <button className="btn primary" onClick={confirm} disabled={!canConfirm}>
             Confirm &amp; execute new price
           </button>
         </>

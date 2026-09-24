@@ -31,7 +31,7 @@ export function Setup() {
           <h3>D365 connection</h3>
           <div className="field">
             <label>Environment URL</label>
-            <input className="input" placeholder="https://alvinsisland-prod.operations.dynamics.com" />
+            <input className="input" placeholder="https://bluestem-prod.operations.dynamics.com" />
           </div>
           <div className="field">
             <label>Legal entity</label>
@@ -167,7 +167,7 @@ export function Setup() {
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <button className="btn gold" onClick={() => showToast('Settings saved to localStorage')}>
+        <button className="btn primary" onClick={() => showToast('Settings saved to localStorage')}>
           Save settings
         </button>
       </div>

@@ -1,27 +1,36 @@
-# Alvin's Island — Pricing & Margin Workspace
+# bluestem — Pricing & Margin Workspace
 
-RSM presales demo kit. A Dynamics 365 F&SC pricing-and-margin agent retargeted
-to **Alvin's Island** (alvinsisland.com), a coastal beachwear and surf retailer
-running ~20 stores across the Florida panhandle, Gulf Coast Florida, and coastal
-Alabama, plus a direct ecommerce channel.
+RSM presales demo kit. A Dynamics 365 F&SC pricing-and-margin agent, branded
+for **Bluestem Fresh Produce** — RSM's fictional mock company for the IFPA
+show circuit. Brand kit lives in `../Blustem-company-details` (note the folder
+spelling): `BRAND_GUIDE.md`, `PUN_BANK.md`, logo PNGs, and
+`Bluestem_Brand_v2_and_Data.zip` (SVG mark, favicon, employees, sample data).
 
-Visual language matches the **Retail Product Creation** workspace
-(retail-product-creation.rsmd365.com) so the two demos read as one product
-family: deep navy chrome, beach gold accents, Poppins throughout, white cards on
-a cool grey ground.
+**Brand status (Sep 24, 2026):** chrome, palette, typography, favicon, title
+ribbon, RSM sponsor mark, persona, and doc titles are Bluestem. The **dataset
+is still the coastal beachwear book** it was originally built on (own-label
+souvenir goods vs. branded surf under vendor MAP programs, a Gulf Coast store
+estate). Retargeting the data to produce is a domain rethink, not a find-and-
+replace — see §8. `bluestem/data/price_margin_alerts.csv` in the brand zip is
+the seed for that: sales-order lines below a 25% floor with causes like
+"Promo price overlap", "Contract price not updated", and "Freight surcharge".
+
+Visual language follows the Bluestem brand guide so every app on the show
+floor reads as RSM-built: Midnight chrome, RSM Blue actions, RSM Green
+reserved for on-target status, Poppins headings over Segoe UI body.
 
 ---
 
 ## 1. The argument the demo makes
 
-Alvin's Island sells two very different kinds of product, and they behave
-nothing alike under discount:
+The (still beachwear) dataset sells two very different kinds of product, and
+they behave nothing alike under discount:
 
 | | Own label | Branded surf |
 |---|---|---|
 | Examples | Panama City Beach Sunset Tee, Destin Sun & Stripes Hoodie, Shark Tooth Necklace | Quiksilver, Roxy, Volcom, O'Neill, Rip Curl, Vans, Fox Racing |
 | Average margin in the dataset | **67.5%** | **42.9%** |
-| Who sets the floor | Alvin's Island | the brand, via **MAP** |
+| Who sets the floor | the retailer | the brand, via **MAP** |
 | Markdown headroom | deep — 40% off still clears the target | almost none |
 
 So the pitch is: *discounting own-label souvenir goods is cheap; discounting
@@ -34,8 +43,8 @@ pressure to mark everything down at once.
 
 ## 2. The two pricing modes
 
-**Retail** — alvinsisland.com plus the store estate. Alvin's Island sets the
-price. Channels are ecommerce, all-stores, price groups (Retail Standard,
+**Retail** — the ecommerce site (`bluestemfresh.com` in the data) plus the
+store estate. The retailer sets the price. Channels are ecommerce, all-stores, price groups (Retail Standard,
 High Stores), outlets, and resort & kiosk locations (which carry a price uplift).
 
 **Vendor programs** — the branded assortment is bought under brand programs.
@@ -71,7 +80,7 @@ separate everywhere — `lineBelowMap` vs `lineBreachesMap`.
 | **Setup** | D365 connection, margin guardrails, follow-up actions, assistant transport, and a live **data reconciliation** block. |
 
 A **price scope** is whatever a price is set against: the retail list price, a
-single channel (`alvinsisland.com`), one store (`ST-PCB`), or a vendor
+single channel (`bluestemfresh.com`), one store (`ST-PCB`), or a vendor
 program's MAP schedule (`VP-QUIK`). The same product carries different history
 in different scopes — the Quiksilver boardshort has both a retail list history
 and a Quiksilver MAP history, and reading them side by side is the point.
@@ -92,7 +101,7 @@ Price Updates adds three things the threshold test does not have:
 **Store scope.** Every retail price record carries the locations it applies to
 (`storeCodes`). Selecting stores filters the grid *and* re-computes every
 performance figure over just those locations. A price that only exists on
-alvinsisland.com disappears when you deselect Ecommerce.
+the ecommerce site disappears when you deselect Ecommerce.
 
 **Performance columns.** Sell-through (units sold ÷ units available), sales
 velocity (units per day / week / month, switchable), and weeks of supply.
@@ -173,25 +182,48 @@ brands appear only as counterparties setting normal MAP and co-op terms.
 
 ## 6. Design system
 
-Tokens in `src/styles/theme.css`, lifted to match the Retail Product Creation
-workspace.
+Tokens in `src/styles/theme.css`, per `BRAND_GUIDE.md` (palette borrowed from
+rsmus.com).
 
 | Role | Token | Value |
 |---|---|---|
-| Chrome / sidebar | `--navy-900` | `#0b1f36` |
-| Primary button | `--navy-800` | `#0b304d` |
-| Accent / execute action | `--gold-400` | `#d9a93b` |
-| Page ground | `--bg` | `#f3f5f8` |
-| Card | `--surface` / `--ink-200` | `#fff` on `#d5dae3` |
-| Critical / good / warning | `--critical` `--good` `--warning` | `#d03b3b` `#0ca30c` `#fab219` |
+| Chrome / ribbon / sidebar | `--midnight-900` | `#00153D` Midnight |
+| Sidebar gradient top | `--midnight-800` | `#0B2454` |
+| Secondary solid button | `--midnight-900` | `#00153D` |
+| Primary / execute action, links, active nav | `--accent` (`--blue-600`) | `#0079AD` — RSM Blue deepened for AA text contrast |
+| Chart series 1, avatar, active-nav rail | `--blue-500` | `#009CDE` RSM Blue |
+| Selected rows, info banners | `--blue-100` | `#E5F5FC` Light Sky |
+| Page ground | `--bg` (`--grey-50`) | `#F2F3F4` Fog |
+| Card | `--surface` / `--grey-200` | `#fff` on `#D7D9DB` |
+| Good / warning / critical | `--good` `--warning` `--critical` | `#3F9C35` RSM Green · `#F2A900` Harvest Amber · `#D0342C` Signal Red |
 
-Type is **Poppins 400/500/600/700**, self-hosted as base64 woff2 in
-`src/styles/fonts.css` — no CDN, so the built artifact is self-contained for
-GitHub Pages. Numbers use `font-variant-numeric: tabular-nums`; item codes use
-the mono stack.
+Green is status-only (on-target margin, accepted, positive delta). It never
+colours a button or a chart series — the brand guide reserves it.
 
-Radii are 6/8/12px, cards carry a soft two-layer shadow, and the gold "A" tile
-in the sidebar is the same mark as the favicon.
+`--ink-*` tokens are aliases onto the grey scale so the pages' inline styles
+did not need touching.
+
+Type: **Poppins 600** for headings, KPI values, the wordmark and the app name
+(self-hosted as base64 woff2 in `src/styles/fonts.css`, no CDN); **Segoe UI**
+for body and grids, matching D365 F&SC. Numbers use tabular figures; item codes
+use the mono stack.
+
+### Header pattern
+
+A fixed 52px Midnight **title ribbon** spans the full width, per the brand
+guide: bluestem lockup on the left (inline SVG mark + Poppins wordmark, white
+"blue" / green "stem" on dark), a divider, then the app name. On the right:
+season and as-of date, the required **"Powered by" RSM sponsor mark**
+(`src/assets/rsmus-logo-white.png`, 22px tall, behind a 1px divider), then the
+persona avatar and name from `BRAND.persona`. The sidebar sits below the ribbon
+and carries only navigation; the active link gets a 3px RSM Blue rail.
+
+The brand guide's header also lists a site selector (GRP / HRT / HOL / SAL).
+It is deliberately omitted here: this dataset is keyed on stores, not Bluestem
+sites, and a selector that changes nothing is a decoy.
+
+The favicon is `public/favicon.png` (`favicon_64.png` from the brand zip). The
+lockup component is `src/components/BluestemLogo.tsx`.
 
 ## 7. Running it
 
@@ -201,9 +233,10 @@ npm run dev        # vite dev server
 npm run build      # tsc && vite build -> dist/
 ```
 
-Deploys to GitHub Pages via `.github/workflows/deploy.yml`. `vite.config.ts`
-uses a relative `base` so it works from any Pages path, and routing is hash-based
-for the same reason.
+Deploys to Cloudflare Pages (project `price-margin-agent`) via
+`.github/workflows/deploy.yml` on push to `main`. `vite.config.ts` uses a
+relative `base` so it works from any path, and routing is hash-based for the
+same reason.
 
 ## 8. Retargeting to another prospect
 
@@ -214,3 +247,24 @@ for the same reason.
    reads as alarmist.
 3. Adjust the palette in `src/styles/theme.css` if the new brand needs it.
 4. `npm run build`, then check the Setup page's reconciliation block ties out.
+
+### Still to do for the Bluestem data retarget
+
+Step 2 has not been done for Bluestem. The current domain model is retail
+apparel: register overrides, own-label vs branded, vendor MAP floors and co-op
+waivers, a store estate with sell-through. A produce grower-packer-shipper
+does not have MAP floors or register overrides. The mapping to work out
+before touching `mockData.ts`:
+
+| Today | Bluestem equivalent |
+|---|---|
+| Register price overrides | Sales-order line price overrides below the 25% floor (`price_margin_alerts.csv`: causes are promo overlap, stale contract price, freight surcharge, raw cost increase) |
+| Retail vs vendor pricing modes | Retail (grocery chains, club) vs foodservice distributor contracts — the sibling rebate app already splits on this |
+| Vendor MAP floor + co-op waiver | Customer contract price + trade promotion window (`trade_promotions.csv`) |
+| Own label vs branded | Packed produce (`PK-*`) vs fresh-cut (`FC-*`) items, which carry very different margins |
+| Store estate / sell-through | Ship-to customers and sites (GRP / HRT / HOL / SAL); velocity per customer instead of per store |
+| Gulf Coast seasonality | Michigan harvest calendar — apples and squash in autumn, asparagus in spring, winter volume from partner growers |
+
+The personas in `employees.csv` (Kate Sullivan for club/mass, Elena Petrov for
+retail central, Jamal Greene for foodservice) should replace the invented
+override users. Everything portrayed as a problem stays fictional.
