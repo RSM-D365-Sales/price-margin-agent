@@ -5,37 +5,37 @@ import { Kpi } from '../components/Kpi'
 
 export function PriceHistory() {
   const products = useMemo(() => {
-    const seen = new Map<string, { itemNumber: string; styleName: string; colorSize: string }>()
+    const seen = new Map<string, { itemNumber: string; itemName: string; pack: string }>()
     for (const r of PRICE_HISTORY) {
-      const key = `${r.itemNumber}|${r.colorSize}`
+      const key = `${r.itemNumber}|${r.pack}`
       if (!seen.has(key)) seen.set(key, r)
     }
     return [...seen.values()]
   }, [])
 
-  const [productKey, setProductKey] = useState(`${products[0].itemNumber}|${products[0].colorSize}`)
+  const [productKey, setProductKey] = useState(`${products[0].itemNumber}|${products[0].pack}`)
 
   const scopes = useMemo(
     () =>
-      PRICE_HISTORY.filter((r) => `${r.itemNumber}|${r.colorSize}` === productKey).map((r) => ({
+      PRICE_HISTORY.filter((r) => `${r.itemNumber}|${r.pack}` === productKey).map((r) => ({
         id: r.scopeId,
         name: r.scopeName,
       })),
     [productKey],
   )
 
-  const [scope, setScope] = useState(scopes[0]?.id ?? 'RETAIL')
+  const [scope, setScope] = useState(scopes[0]?.id ?? 'LIST')
 
   const record = useMemo(() => {
     const match = PRICE_HISTORY.find(
-      (r) => `${r.itemNumber}|${r.colorSize}` === productKey && r.scopeId === scope,
+      (r) => `${r.itemNumber}|${r.pack}` === productKey && r.scopeId === scope,
     )
-    return match ?? PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.colorSize}` === productKey) ?? null
+    return match ?? PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.pack}` === productKey) ?? null
   }, [productKey, scope])
 
   function onProductChange(key: string) {
     setProductKey(key)
-    const first = PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.colorSize}` === key)
+    const first = PRICE_HISTORY.find((r) => `${r.itemNumber}|${r.pack}` === key)
     if (first) setScope(first.scopeId)
   }
 
@@ -59,16 +59,15 @@ export function PriceHistory() {
         <div className="eyebrow">Audit report · Price history</div>
         <h1>Price History</h1>
         <p className="lede">
-          Pick a product (size / color) and a price scope to see every price change — who changed
-          it, why, and the window each price was live for. A scope is whatever the price is set
-          against: the retail list price, a single channel, one store, or a vendor program&rsquo;s
-          MAP schedule.
+          Pick an item (pack) and a price scope to see every price change — who changed it, why, and
+          the window each price was live for. A scope is whatever the price is set against:
+          Bluestem&rsquo;s list price, a customer price group, or one customer&rsquo;s contract line.
         </p>
       </header>
 
       <div className="card filter-bar">
         <div className="field">
-          <label>Product · size / color</label>
+          <label>Item · pack</label>
           <select
             className="select"
             style={{ minWidth: 340 }}
@@ -76,8 +75,8 @@ export function PriceHistory() {
             onChange={(e) => onProductChange(e.target.value)}
           >
             {products.map((p) => (
-              <option key={`${p.itemNumber}|${p.colorSize}`} value={`${p.itemNumber}|${p.colorSize}`}>
-                {p.styleName} · {p.itemNumber} · {p.colorSize}
+              <option key={`${p.itemNumber}|${p.pack}`} value={`${p.itemNumber}|${p.pack}`}>
+                {p.itemName} · {p.itemNumber} · {p.pack}
               </option>
             ))}
           </select>
@@ -100,7 +99,7 @@ export function PriceHistory() {
         {scopes.length > 1 && (
           <>
             <div className="spacer" />
-            <span className="pill blue">{scopes.length} scopes on this product</span>
+            <span className="pill blue">{scopes.length} scopes on this item</span>
           </>
         )}
       </div>
@@ -124,10 +123,10 @@ export function PriceHistory() {
           <div className="card" style={{ padding: '20px 24px' }}>
             <div className="section-head" style={{ marginBottom: 18 }}>
               <h2>
-                {record.styleName} · {record.colorSize}
+                {record.itemName} · {record.pack}
               </h2>
               <div style={{ display: 'flex', gap: 8 }}>
-                <span className={`pill ${record.productLine === 'Own label' ? 'grey' : 'midnight'}`}>
+                <span className={`pill ${record.productLine === 'Fresh-cut' ? 'grey' : 'midnight'}`}>
                   {record.productLine}
                 </span>
                 <span className="pill blue">{record.scopeName}</span>

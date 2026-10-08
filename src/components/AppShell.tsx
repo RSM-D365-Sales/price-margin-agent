@@ -68,7 +68,7 @@ export function AppShell() {
           ))}
         </div>
         <div className="nav-foot">
-          Guards margin across {BRAND.site}, the store estate, and vendor programs.
+          Guards margin across retail price groups, foodservice contracts, and grower pools.
           <span className="mode">{BRAND.tagline}</span>
         </div>
       </nav>

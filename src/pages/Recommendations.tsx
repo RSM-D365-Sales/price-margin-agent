@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { RECOMMENDATIONS, RETAIL_KPIS, VENDOR_KPIS } from '../data/mockData'
+import { RECOMMENDATIONS, RETAIL_KPIS, FOODSERVICE_KPIS } from '../data/mockData'
 import type { RecAudience, Recommendation } from '../models/types'
 import { Kpi } from '../components/Kpi'
 import { useToast } from '../components/useToast'
@@ -31,7 +31,7 @@ export function Recommendations() {
   const shown = useMemo(() => recs.filter((r) => r.audience === audience), [recs, audience])
   const open = shown.filter((r) => r.status === 'Open')
   const accepted = recs.filter((r) => r.status === 'Accepted').length
-  const kpis = audience === 'Retail' ? RETAIL_KPIS : VENDOR_KPIS
+  const kpis = audience === 'Retail' ? RETAIL_KPIS : FOODSERVICE_KPIS
 
   function setStatus(id: string, status: Recommendation['status']) {
     setRecs((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)))
@@ -48,9 +48,9 @@ export function Recommendations() {
         <div className="eyebrow">AI price &amp; discount guidance</div>
         <h1>Recommendations</h1>
         <p className="lede">
-          Objective: hold gross margin through the season change while keeping full-price
-          sell-through up and unnecessary markdowns down. The agent monitors the KPIs below and
-          proposes pricing, markdown, promotion, and vendor program moves — every action stays
+          Objective: hold gross margin through the apple and squash harvest while keeping short-life
+          product moving and trade spend where it earns. The agent monitors the KPIs below and
+          proposes pricing, promotion, inventory, and contract moves — every action stays
           human-in-the-loop.
         </p>
       </header>
@@ -76,12 +76,12 @@ export function Recommendations() {
           </span>
         </button>
         <button
-          className={`tab${audience === 'Vendor' ? ' active' : ''}`}
-          onClick={() => setAudience('Vendor')}
+          className={`tab${audience === 'Foodservice' ? ' active' : ''}`}
+          onClick={() => setAudience('Foodservice')}
         >
-          Vendor Program Agent
+          Foodservice Contract Agent
           <span className="count">
-            {recs.filter((r) => r.audience === 'Vendor' && r.status === 'Open').length}
+            {recs.filter((r) => r.audience === 'Foodservice' && r.status === 'Open').length}
           </span>
         </button>
       </div>
@@ -94,7 +94,7 @@ export function Recommendations() {
             style={r.status !== 'Open' ? { opacity: 0.55 } : undefined}
           >
             <div className="rec-head">
-              <span className={`pill ${r.kind === 'MAP compliance' ? 'critical' : 'blue'}`}>
+              <span className={`pill ${r.kind === 'Floor compliance' ? 'critical' : 'blue'}`}>
                 {r.kind}
               </span>
               <span
@@ -138,7 +138,7 @@ export function Recommendations() {
           <h2>
             {audience === 'Retail'
               ? 'Retail KPIs the agent monitors'
-              : 'Vendor program KPIs the agent monitors'}
+              : 'Foodservice contract KPIs the agent monitors'}
           </h2>
         </div>
         <div className="chip-row">

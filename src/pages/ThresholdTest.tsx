@@ -2,10 +2,10 @@ import { useMemo, useState } from 'react'
 import { PRICING_SETUP, CATEGORIES } from '../data/mockData'
 import {
   lineMarginPct,
-  lineUnfundedMarginPct,
+  lineUnpooledMarginPct,
   lineSalesPrice,
-  lineBelowMap,
-  lineBreachesMap,
+  lineBelowFloor,
+  lineBreachesFloor,
   type PricingSetupLine,
   type PricingMode,
 } from '../models/types'
@@ -50,12 +50,12 @@ export function ThresholdTest() {
   }, [matching, mode, hasRun])
 
   const retailCount = matching.filter((l) => l.mode === 'Retail').length
-  const vendorCount = matching.filter((l) => l.mode === 'Vendor').length
+  const foodserviceCount = matching.filter((l) => l.mode === 'Foodservice').length
   const worstMargin = results.length ? lineMarginPct(results[0]) : null
 
-  // MAP breaches are evaluated across the whole book, not just the failing set —
+  // Floor breaches are evaluated across the whole book, not just the failing set —
   // a line can sit above the margin target and still be out of compliance.
-  const breaches = useMemo(() => lines.filter((l) => lineBreachesMap(l, AS_OF)), [lines])
+  const breaches = useMemo(() => lines.filter((l) => lineBreachesFloor(l, AS_OF)), [lines])
   const breachesInMode = breaches.filter((l) => l.mode === mode)
 
   function setQty(id: string, qty: number) {
@@ -95,9 +95,9 @@ export function ThresholdTest() {
         <h1>Margin Threshold Test</h1>
         <p className="lede">
           A price simulator tests one line at a time. This finds <em>all</em> pricing setup at or
-          below a margin % across a date range — ecommerce and store pricing on the retail side,
-          brand programs with their MAP floors and co-op funding on the vendor side. Select lines
-          and let the agent draft a new price.
+          below a margin % across a date range — customer price groups and trade promotions on the
+          retail side, contract lines with their floors and grower pool share on the foodservice
+          side. Select lines and let the agent draft a new price.
         </p>
       </header>
 
@@ -157,16 +157,16 @@ export function ThresholdTest() {
         <Kpi
           label="Worst margin found"
           value={worstMargin === null ? '—' : pct(worstMargin)}
-          tone={worstMargin !== null && worstMargin < 30 ? 'red' : 'default'}
-          sub={results.length ? results[0].styleName : 'no failures'}
+          tone={worstMargin !== null && worstMargin < 20 ? 'red' : 'default'}
+          sub={results.length ? results[0].itemName : 'no failures'}
         />
-        <Kpi label="Retail failures" value={num(retailCount)} sub="ecommerce + store" />
-        <Kpi label="Vendor failures" value={num(vendorCount)} sub="brand programs" />
+        <Kpi label="Retail failures" value={num(retailCount)} sub="price groups + promotions" />
+        <Kpi label="Foodservice failures" value={num(foodserviceCount)} sub="contract lines" />
         <Kpi
-          label="MAP breaches"
+          label="Below floor, no promo"
           value={num(breaches.length)}
           tone={breaches.length ? 'red' : 'sage'}
-          sub="whole book, no active waiver"
+          sub="whole book, promotion ended"
         />
       </div>
 
@@ -178,17 +178,17 @@ export function ThresholdTest() {
           <span>
             <b>
               {breachesInMode.length} {mode.toLowerCase()} line
-              {breachesInMode.length === 1 ? '' : 's'} price below a vendor MAP floor with no active
-              waiver:
+              {breachesInMode.length === 1 ? '' : 's'} price below floor with no active trade
+              promotion:
             </b>{' '}
             {breachesInMode
               .map(
                 (l) =>
-                  `${l.itemNumber} at ${money(lineSalesPrice(l))} against a ${money(l.mapFloor!)} floor` +
-                  (l.mapWaiverUntil ? ` (waiver expired ${shortDate(l.mapWaiverUntil)})` : ' (no waiver on file)'),
+                  `${l.itemNumber} at ${money(lineSalesPrice(l))} against a ${money(l.floorPrice!)} floor` +
+                  (l.promoUntil ? ` (${l.discount?.promoId ?? 'promotion'} ended ${shortDate(l.promoUntil)})` : ' (no promotion on file)'),
               )
               .join(' · ')}
-            . Repricing with <em>hold at or above MAP</em> enabled clears this.
+            . Repricing with <em>hold at or above the floor</em> enabled clears this.
           </span>
         </div>
       )}
@@ -198,13 +198,13 @@ export function ThresholdTest() {
           className={`tab${mode === 'Retail' ? ' active' : ''}`}
           onClick={() => setMode('Retail')}
         >
-          Retail · Ecommerce &amp; Stores<span className="count">{retailCount}</span>
+          Retail · Grocery, Club &amp; E-commerce<span className="count">{retailCount}</span>
         </button>
         <button
-          className={`tab${mode === 'Vendor' ? ' active' : ''}`}
-          onClick={() => setMode('Vendor')}
+          className={`tab${mode === 'Foodservice' ? ' active' : ''}`}
+          onClick={() => setMode('Foodservice')}
         >
-          Vendor · Brand Programs<span className="count">{vendorCount}</span>
+          Foodservice · Contracts<span className="count">{foodserviceCount}</span>
         </button>
       </div>
 
@@ -223,24 +223,24 @@ export function ThresholdTest() {
               <th>Product</th>
               <th>Item</th>
               <th>Category</th>
-              <th>Color / Size</th>
-              {mode === 'Vendor' ? <th>Brand / Program</th> : <th>Channel</th>}
+              <th>Pack</th>
+              {mode === 'Foodservice' ? <th>Customer / Contract</th> : <th>Channel</th>}
               <th className="num">Qty</th>
               <th className="num">Base price (TA)</th>
               <th className="num">Margin comp.</th>
               <th className="num">Discount</th>
               <th className="num">Auto charge</th>
               <th className="num">Sales price</th>
-              <th className="num">MAP floor</th>
+              <th className="num">Price floor</th>
               <th className="num">Margin %</th>
             </tr>
           </thead>
           <tbody>
             {results.map((l) => {
               const m = lineMarginPct(l)
-              const belowMap = lineBelowMap(l)
-              const breach = lineBreachesMap(l, AS_OF)
-              const funded = (l.vendorAllowancePct ?? 0) > 0
+              const belowFloor = lineBelowFloor(l)
+              const breach = lineBreachesFloor(l, AS_OF)
+              const pooled = (l.poolSharePct ?? 0) > 0
               return (
                 <tr key={l.id} className={selected.has(l.id) ? 'row-selected' : undefined}>
                   <td>
@@ -248,23 +248,23 @@ export function ThresholdTest() {
                       type="checkbox"
                       checked={selected.has(l.id)}
                       onChange={() => toggle(l.id)}
-                      aria-label={`Select ${l.styleName}`}
+                      aria-label={`Select ${l.itemName}`}
                     />
                   </td>
                   <td className="style-cell">
-                    <div className="style-name">{l.styleName}</div>
+                    <div className="style-name">{l.itemName}</div>
                     <div className="style-sub">
                       {l.productLine} · valid {shortDate(l.validFrom)} – {shortDate(l.validTo)}
                     </div>
                   </td>
                   <td className="item-code">{l.itemNumber}</td>
                   <td>{l.category}</td>
-                  <td>{l.colorSize}</td>
-                  {mode === 'Vendor' ? (
+                  <td>{l.pack}</td>
+                  {mode === 'Foodservice' ? (
                     <td>
                       <div>{l.channelDetail}</div>
                       <div className="style-sub">
-                        {l.vendorAccount} · {l.vendorProgram}
+                        {l.customerAccount} · {l.contract}
                       </div>
                     </td>
                   ) : (
@@ -300,27 +300,27 @@ export function ThresholdTest() {
                   <td className="num">{l.autoCharge === 0 ? '—' : money(l.autoCharge)}</td>
                   <td className="num">{money(lineSalesPrice(l))}</td>
                   <td className="num">
-                    {l.mapFloor === undefined ? (
+                    {l.floorPrice === undefined ? (
                       <span style={{ color: 'var(--ink-300)' }}>—</span>
                     ) : breach ? (
                       <span className="map-breach">
-                        {money(l.mapFloor)}
+                        {money(l.floorPrice)}
                         <div style={{ fontSize: 11 }}>breach</div>
                       </span>
-                    ) : belowMap ? (
+                    ) : belowFloor ? (
                       <span style={{ color: 'var(--warning-text)' }}>
-                        {money(l.mapFloor)}
-                        <div style={{ fontSize: 11 }}>waived</div>
+                        {money(l.floorPrice)}
+                        <div style={{ fontSize: 11 }}>on promo</div>
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--ink-500)' }}>{money(l.mapFloor)}</span>
+                      <span style={{ color: 'var(--ink-500)' }}>{money(l.floorPrice)}</span>
                     )}
                   </td>
                   <td className={`num ${m <= marginTarget ? 'margin-red' : 'margin-ok'}`}>
                     {pct(m)}
-                    {funded && (
+                    {pooled && (
                       <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--ink-400)' }}>
-                        {pct(lineUnfundedMarginPct(l))} unfunded
+                        {pct(lineUnpooledMarginPct(l))} unpooled
                       </div>
                     )}
                   </td>
@@ -365,19 +365,19 @@ export function ThresholdTest() {
           <dl className="detail-list">
             <dt>Applies to</dt>
             <dd>
-              {discountDetail.styleName} ({discountDetail.itemNumber}) · {discountDetail.colorSize}
+              {discountDetail.itemName} ({discountDetail.itemNumber}) · {discountDetail.pack}
             </dd>
             <dt>Current qty</dt>
             <dd>
               {num(discountDetail.quantity)} → effective {pct(discountDetail.discountPct, 0)} off
             </dd>
-            {discountDetail.vendorAllowancePct !== undefined && (
+            {discountDetail.poolSharePct !== undefined && (
               <>
-                <dt>Vendor funding</dt>
+                <dt>Grower pool share</dt>
                 <dd>
-                  {discountDetail.vendorAllowancePct}% of cost — margin reads{' '}
-                  {pct(lineMarginPct(discountDetail))} funded,{' '}
-                  {pct(lineUnfundedMarginPct(discountDetail))} unfunded
+                  {discountDetail.poolSharePct}% of cost — margin reads{' '}
+                  {pct(lineMarginPct(discountDetail))} pooled,{' '}
+                  {pct(lineUnpooledMarginPct(discountDetail))} unpooled
                 </dd>
               </>
             )}
@@ -406,7 +406,7 @@ export function ThresholdTest() {
       {repriceOpen && (
         <RepriceModal
           lines={repriceLines}
-          note={mode === 'Vendor' ? 'Vendor lines route through trade-agreement journal approval.' : undefined}
+          note={mode === 'Foodservice' ? 'Contract lines route through trade-agreement journal approval.' : undefined}
           onClose={() => setRepriceOpen(false)}
           onApply={applyReprice}
         />

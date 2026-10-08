@@ -12,7 +12,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
     {
       role: 'agent',
       text:
-        'I\u2019m the pricing assistant. Ask me about price overrides, margin threshold tests, vendor MAP compliance, price history, or the open recommendations.',
+        'I\u2019m the pricing assistant. Ask me about price overrides, margin threshold tests, price floors and expired promotions, price history, or the open recommendations.',
     },
   ])
   const [input, setInput] = useState('')
@@ -60,7 +60,7 @@ export function ChatPanel({ onClose }: { onClose: () => void }) {
       <div className="chat-input-row">
         <input
           className="input"
-          placeholder="Ask about margins, overrides, MAP…"
+          placeholder="Ask about margins, overrides, floors…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send(input)}

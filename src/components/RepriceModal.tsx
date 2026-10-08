@@ -96,18 +96,18 @@ function OrgPicker({
               </span>
             </label>
             <div style={{ paddingLeft: 22, display: 'flex', flexWrap: 'wrap', gap: '2px 16px' }}>
-              {(r.children ?? []).map((store) => (
+              {(r.children ?? []).map((cust) => (
                 <label
-                  key={store.code}
+                  key={cust.code}
                   style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--ink-600)' }}
                 >
                   <input
                     type="checkbox"
-                    checked={selected.has(store.code)}
-                    onChange={(e) => toggleLeaves([store.code], e.target.checked)}
+                    checked={selected.has(cust.code)}
+                    onChange={(e) => toggleLeaves([cust.code], e.target.checked)}
                     style={{ width: 13, height: 13 }}
                   />
-                  {store.name}
+                  {cust.name}
                 </label>
               ))}
             </div>
@@ -130,7 +130,7 @@ export function RepriceModal({
   const [method, setMethod] = useState<Method>('margin')
   const [targetMargin, setTargetMargin] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
   const [changePct, setChangePct] = useState(1.3)
-  const [respectMap, setRespectMap] = useState(true)
+  const [respectFloor, setRespectFloor] = useState(true)
   const [from, setFrom] = useState(isoToday())
   const [to, setTo] = useState('')
   const [noEndDate, setNoEndDate] = useState(true)
@@ -138,7 +138,7 @@ export function RepriceModal({
   // Default roll-out scope: wherever the selected lines already price.
   const defaultScope = useMemo(() => {
     const s = new Set<string>()
-    for (const l of lines) for (const c of l.storeCodes ?? []) s.add(c)
+    for (const l of lines) for (const c of l.customerCodes ?? []) s.add(c)
     return s
   }, [lines])
   const [scope, setScope] = useState<Set<string>>(defaultScope)
@@ -149,17 +149,17 @@ export function RepriceModal({
    *   salesPrice = (base + marginComp) * (1 - disc) + autoCharge
    *
    * Target margin method: salesPrice = effectiveCost / (1 - m), where effective
-   * cost is net of any vendor allowance — a co-funded line needs a smaller move.
+   * cost is net of any grower pool share — a pooled line needs a smaller move.
    * Percent-change method: salesPrice = currentSalesPrice * (1 + change/100).
-   * With "hold at or above MAP" on, the result is floored at the vendor's
-   * minimum advertised price.
+   * With "hold at or above the floor" on, the result is floored at the price
+   * group's floor.
    */
   function solve(l: PricingSetupLine): PricingSetupLine {
     let targetSales =
       method === 'margin'
         ? lineEffectiveCost(l) / (1 - targetMargin / 100)
         : lineSalesPrice(l) * (1 + changePct / 100)
-    if (respectMap && l.mapFloor !== undefined) targetSales = Math.max(targetSales, l.mapFloor)
+    if (respectFloor && l.floorPrice !== undefined) targetSales = Math.max(targetSales, l.floorPrice)
 
     const next = { ...l, validFrom: from, validTo: noEndDate ? iso(3650) : to }
     if (component === 'discountPct') {
@@ -179,7 +179,7 @@ export function RepriceModal({
   const preview = lines.slice(0, 5)
 
   function confirm() {
-    const scopeText = showRollout ? ` across ${scope.size} location${scope.size === 1 ? '' : 's'}` : ''
+    const scopeText = showRollout ? ` across ${scope.size} customer${scope.size === 1 ? '' : 's'}` : ''
     const methodText =
       method === 'margin'
         ? `solved to reach ${targetMargin}% margin`
@@ -187,7 +187,7 @@ export function RepriceModal({
     onApply(
       lines.map(solve),
       `New prices executed for ${lines.length} line${lines.length === 1 ? '' : 's'}${scopeText} · ` +
-        `${COMPONENT_LABELS[component]} ${methodText}${respectMap ? ', held at or above MAP' : ''}`,
+        `${COMPONENT_LABELS[component]} ${methodText}${respectFloor ? ', held at or above the floor' : ''}`,
     )
   }
 
@@ -197,7 +197,7 @@ export function RepriceModal({
     <Modal
       title="Draft new price"
       sub={
-        `The agent solves the chosen component so each line lands on its new price, measured against cost net of any vendor allowance.` +
+        `The agent solves the chosen component so each line lands on its new price, measured against cost net of any grower pool share.` +
         (note ? ` ${note}` : '')
       }
       onClose={onClose}
@@ -286,10 +286,10 @@ export function RepriceModal({
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
           <input
             type="checkbox"
-            checked={respectMap}
-            onChange={(e) => setRespectMap(e.target.checked)}
+            checked={respectFloor}
+            onChange={(e) => setRespectFloor(e.target.checked)}
           />
-          Hold at or above the vendor MAP floor
+          Hold at or above the price floor
         </label>
 
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -347,7 +347,7 @@ export function RepriceModal({
                 return (
                   <tr key={l.id}>
                     <td className="mono">
-                      {l.itemNumber} · {l.colorSize}
+                      {l.itemNumber} · {l.pack}
                     </td>
                     <td className="num">
                       {money(oldPrice)} ({pct(lineMarginPct(l))})

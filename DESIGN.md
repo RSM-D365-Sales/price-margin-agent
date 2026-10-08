@@ -1,19 +1,19 @@
 # bluestem — Pricing & Margin Workspace
 
-RSM presales demo kit. A Dynamics 365 F&SC pricing-and-margin agent, branded
+RSM presales demo kit. A Dynamics 365 F&SC pricing-and-margin agent, built
 for **Bluestem Fresh Produce** — RSM's fictional mock company for the IFPA
-show circuit. Brand kit lives in `../Blustem-company-details` (note the folder
-spelling): `BRAND_GUIDE.md`, `PUN_BANK.md`, logo PNGs, and
+show circuit, a Michigan grower-packer-shipper and fresh-cut processor. Brand
+kit lives in `../Blustem-company-details` (note the folder spelling):
+`BRAND_GUIDE.md`, `PUN_BANK.md`, logo PNGs, and
 `Bluestem_Brand_v2_and_Data.zip` (SVG mark, favicon, employees, sample data).
 
-**Brand status (Sep 24, 2026):** chrome, palette, typography, favicon, title
-ribbon, RSM sponsor mark, persona, and doc titles are Bluestem. The **dataset
-is still the coastal beachwear book** it was originally built on (own-label
-souvenir goods vs. branded surf under vendor MAP programs, a Gulf Coast store
-estate). Retargeting the data to produce is a domain rethink, not a find-and-
-replace — see §8. `bluestem/data/price_margin_alerts.csv` in the brand zip is
-the seed for that: sales-order lines below a 25% floor with causes like
-"Promo price overlap", "Contract price not updated", and "Freight surcharge".
+**Status (Oct 8, 2026):** brand and data are both Bluestem. The visual rebrand
+landed Sep 24; the produce data retarget (§8) landed Oct 8. Items, case costs,
+list prices, shelf lives, customers and people come from the brand zip
+(`items.csv`, `customers.csv`, `employees.csv`); the order lines, prices,
+promotions and decisions are invented for this app. The 25% order-line floor
+and the override causes ("Promo price overlap", "Contract price not updated")
+follow `price_margin_alerts.csv`.
 
 Visual language follows the Bluestem brand guide so every app on the show
 floor reads as RSM-built: Midnight chrome, RSM Blue actions, RSM Green
@@ -23,140 +23,152 @@ reserved for on-target status, Poppins headings over Segoe UI body.
 
 ## 1. The argument the demo makes
 
-The (still beachwear) dataset sells two very different kinds of product, and
-they behave nothing alike under discount:
+Bluestem sells two very different kinds of product, and they behave nothing
+alike under a promotion:
 
-| | Own label | Branded surf |
+| | Fresh-cut (`FC-*`) | Packed fresh (`PK-*`) |
 |---|---|---|
-| Examples | Panama City Beach Sunset Tee, Destin Sun & Stripes Hoodie, Shark Tooth Necklace | Quiksilver, Roxy, Volcom, O'Neill, Rip Curl, Vans, Fox Racing |
-| Average margin in the dataset | **67.5%** | **42.9%** |
-| Who sets the floor | the retailer | the brand, via **MAP** |
-| Markdown headroom | deep — 40% off still clears the target | almost none |
+| Examples | Apple Slices snack cup, Garden Salad Kit, Veggie Tray, Diced Apples 5 lb | Honeycrisp 3 lb pouch, Gala 3 lb pouch, Blueberry pint, Butternut Squash carton |
+| List margin | **38–44%** | **28–32%** |
+| Average margin in the dataset | **35.8%** | **25.5%** |
+| Promotion headroom | a 15% deal still clears 25% | a 10% deal takes it under |
 
-So the pitch is: *discounting own-label souvenir goods is cheap; discounting
-branded surf is where margin quietly disappears, and the brand — not you — sets
-how far you can go.* Every page in the app is a different lens on that.
+So the pitch is: *promoting fresh-cut is cheap; promoting packed fresh is where
+margin quietly disappears — and a promo price that outlives its window is a
+leak nobody signed off on.* Every page in the app is a different lens on that.
 
-The demo opens post-Labor Day, which is the moment this bites: peak Gulf Coast
-season has just ended, boardshorts are at 14 weeks of supply, and there is
-pressure to mark everything down at once.
+The demo opens in the apple and squash harvest, which is the moment this
+bites: new-crop apples are flowing off the Hart packing line, every chain wants
+a fall feature, and partner-grower blueberries are landing with most of their
+shelf life already used up.
 
 ## 2. The two pricing modes
 
-**Retail** — the ecommerce site (`bluestemfresh.com` in the data) plus the
-store estate. The retailer sets the price. Channels are ecommerce, all-stores, price groups (Retail Standard,
-High Stores), outlets, and resort & kiosk locations (which carry a price uplift).
+**Retail** — grocery chains, club & mass, natural and e-commerce customers,
+priced through D365 customer price groups and trade promotions. Channels are
+Grocery, Club & Mass, Natural and E-commerce; the e-commerce group carries a
+small-pack uplift.
 
-**Vendor programs** — the branded assortment is bought under brand programs.
-The brand sets:
+**Foodservice** — distributor, restaurant-chain and processor contracts. The
+price is a contract line with:
 
-- a **MAP floor** (minimum advertised price),
-- an optional **markdown waiver window** during which pricing below MAP is
-  agreed, and
-- a **co-op allowance** — a % of cost the brand funds on approved markdowns.
+- a **price floor** — the lowest price the price group allows without a
+  promotion,
+- an optional **trade-promotion window** (`TP-2026-*`) during which pricing
+  below the floor is agreed, and
+- on pooled fruit, a **grower pool share** — a % of cost the grower pool
+  carries on a promotional price.
 
-That allowance is why the app reports margin twice on funded lines: *funded*
-margin (against cost net of allowance, which is what the business actually
-earns) and *unfunded* margin (what the P&L looks like without it). The gap
-between them is the whole argument for negotiating co-op funding into a
-program — see `lineEffectiveCost` / `lineUnfundedMarginPct` in
-`src/models/types.ts`.
+That pool share is why the app reports margin twice on pooled lines: *pooled*
+margin (against cost net of the share, which is what Bluestem actually earns)
+and *unpooled* margin (what the P&L looks like without it). See
+`lineEffectiveCost` / `lineUnpooledMarginPct` in `src/models/types.ts`.
 
-**A MAP breach is not the same as a thin margin.** Pricing below MAP inside an
-approved waiver window is compliant. Pricing below MAP with an expired waiver,
-or none at all, is a breach of the vendor agreement. The app keeps those
-separate everywhere — `lineBelowMap` vs `lineBreachesMap`.
+**A floor breach is not the same as a thin margin.** Pricing below the floor
+inside an approved promotion window is fine. Pricing below it after the
+promotion ended — or with no promotion at all — is a price leak. The app keeps
+those separate everywhere: `lineBelowFloor` vs `lineBreachesFloor`.
 
 ## 3. Pages
 
 | Page | What it answers |
 |---|---|
 | **Overview** | Where is margin leaking right now, and how much is at risk? |
-| **Override Audit** | Which register overrides went too thin — and which broke a vendor MAP floor? Email the user or raise a D365 case. |
-| **Margin Threshold Test** | Find *all* pricing setup at or below a margin % across a date range, then let the agent solve base price / margin component / discount to reach a target — optionally held at or above MAP. |
-| **Price Updates** | Rank the retail book by how it is actually selling — sell-through, sales velocity, weeks of supply, margin — then roll a price change out to chosen stores or a whole region. |
-| **Price History** | For one product and one *price scope*, every price change and the window it was live for. |
-| **Recommendations** | Markdown timing, price increases, kiosk uplifts, and vendor program guidance, with accept/dismiss. |
+| **Override Audit** | Which sales-order line overrides went too thin — and which went under the price floor? Email the rep or raise a D365 case. |
+| **Margin Threshold Test** | Find *all* pricing setup at or below a margin % across a date range, then let the agent solve base price / margin component / discount to reach a target — optionally held at or above the floor. |
+| **Price Updates** | Rank the retail book by how it is actually shipping — case velocity, sell-through, days of cover against shelf life, margin — then roll a price change out to chosen customers or a whole segment. |
+| **Price History** | For one item and one *price scope*, every price change and the window it was live for. |
+| **Recommendations** | Promotion timing, price holds and increases, short-life inventory, and foodservice contract guidance, with accept/dismiss. |
 | **Setup** | D365 connection, margin guardrails, follow-up actions, assistant transport, and a live **data reconciliation** block. |
 
-A **price scope** is whatever a price is set against: the retail list price, a
-single channel (`bluestemfresh.com`), one store (`ST-PCB`), or a vendor
-program's MAP schedule (`VP-QUIK`). The same product carries different history
-in different scopes — the Quiksilver boardshort has both a retail list history
-and a Quiksilver MAP history, and reading them side by side is the point.
+A **price scope** is whatever a price is set against: Bluestem's list price
+(`LIST`), a customer price group (`PG-OHIO`, `PG-ECOM`), or one customer's
+contract line (`C10012`). The same item carries different history in different
+scopes — the Honeycrisp 88ct tray has both a list history and a Keystone
+contract history, and reading them side by side shows the promo price that
+never came off.
 
 ## 4. Price Updates vs. Margin Threshold Test
 
 The two grids look similar and answer different questions.
 
 - **Margin Threshold Test** asks *which prices are too thin.* It works on the
-  whole book, retail and vendor, and its unit of analysis is the price record.
-- **Price Updates** asks *which prices the sell-through says are wrong.* It
-  works on the retail book only — those are the prices that carry a store
-  presence and therefore a sell-through — and joins each price record to how
-  the item actually sold in the locations you have selected.
+  whole book, retail and foodservice, and its unit of analysis is the price
+  record.
+- **Price Updates** asks *which prices the movement says are wrong.* It works
+  on the retail book only — those are the prices that ship to a set of
+  customers and therefore carry a velocity — and joins each price record to
+  how the item actually shipped to the customers you have selected.
 
 Price Updates adds three things the threshold test does not have:
 
-**Store scope.** Every retail price record carries the locations it applies to
-(`storeCodes`). Selecting stores filters the grid *and* re-computes every
-performance figure over just those locations. A price that only exists on
-the ecommerce site disappears when you deselect Ecommerce.
+**Customer scope.** Every retail price record carries the ship-tos it applies
+to (`customerCodes`). Selecting customers filters the grid *and* re-computes
+every performance figure over just those customers.
 
-**Performance columns.** Sell-through (units sold ÷ units available), sales
-velocity (units per day / week / month, switchable), and weeks of supply.
-Velocity is shown as a total with a per-location figure underneath, because a
-line stocked in ten stores and one stocked only on the site are not otherwise
-comparable — the "slowest mover" KPI ranks per location for the same reason.
+**Performance columns.** Sell-through (cases shipped ÷ cases available), case
+velocity (per day / week / month, switchable), and days of cover. Velocity is
+shown as a total with a per-customer figure underneath, because a line shipping
+to five chains and one shipping to one club are not otherwise comparable — the
+"slowest mover" KPI ranks per customer for the same reason. The default window
+is the trailing four weeks; produce turns too fast for a 90-day window to say
+anything.
 
 **Roll-out and multiplier.** The reprice modal — shared with the threshold test
-as `RepriceModal` — gains an org-hierarchy picker (pick "Retail Standard" and
-the change applies to the five stores under it) and a second pricing method:
+as `RepriceModal` — gains a customer-hierarchy picker (pick "Grocery" and the
+change applies to the five chains under it) and a second pricing method:
 instead of solving to a target margin, apply a flat percentage move to the
 current price. Both methods then solve the same chosen price component, and the
 preview shows the resulting **new sales price** alongside the new margin.
 
 The two extra features are enabled per-page via `showRollout` / `showMultiplier`,
-so the threshold test keeps its original, simpler modal. Flip either prop on to
-give it the same controls.
+so the threshold test keeps its original, simpler modal.
 
-### Weeks of supply
+### Days of cover
 
-Cover is measured against a **trailing 28-day run rate** (`coverWeeksFor`), not
-against whatever window the user is filtering to. This matters: a 90-day window
-ending in September still spans peak summer, so measuring cover against it would
-flatter every slow mover — the boardshorts would read 7 weeks instead of 14.
-Merchants forecast forward on recent velocity, and the demo has to agree with
-itself when the Recommendations page says 14 weeks.
+Cover is measured against a **trailing 28-day run rate** (`coverDaysFor`), not
+against whatever window the user is filtering to, and it is always shown next to
+the item's shelf life (`shelfLifeFor`). Nine days of cover is nothing for a
+60-day squash carton and most of the life of a 12-day blueberry pint; the grid
+colours cover by the share of shelf life it uses (red above 60%, green below
+35%). The Recommendations page's "9 days on a 12-day shelf life" is the same
+number the grid shows.
 
 ## 5. The dataset
 
 `src/data/mockData.ts` is the single source of truth. Every figure is
 synthetic and hand-built to tie out:
 
-- **20 active pricing setup lines** (12 retail, 8 vendor). At the 45% default
-  target, **6 fail** — 3 retail, 3 vendor. Almost all failures are branded,
-  which is the intended finding.
-- **3 MAP breaches** with no active waiver. The sharpest is the Rip Curl
-  Surflite: the vendor's waiver expired nine days before the as-of date and the
-  price was never restored.
-- **18 register price overrides**, 8 at or below 45% margin, 5 below a MAP
-  floor. Several branded overrides sit *thin but exactly at the floor* — that
-  contrast is why the MAP column exists.
-- **8 price history records** across 5 price scopes, with no gaps in the
+- **20 active pricing setup lines** (12 retail, 8 foodservice). At the 25%
+  default floor, **6 fail** — 3 retail, 3 foodservice. Every failure is packed
+  fresh, which is the intended finding.
+- **3 floor breaches** with no active promotion. The sharpest is the Keystone
+  Foodservice Honeycrisp 88ct tray: trade promotion TP-2026-118 closed nine
+  days before the as-of date and the 15% allowance stayed on the contract line.
+  The others are the Ohio Gala ad price still live at Northwind Foods and
+  Harborline Markets, and the Windy City Salad Works pepper volume schedule that
+  was never re-cut against a raised floor.
+- **18 sales-order line overrides**, 8 at or below 25% margin, 5 below the
+  price floor. Two sit *thin but exactly at the floor* — that contrast is why
+  the floor column exists.
+- **8 price history records** across 4 price scopes, with no gaps in the
   active-from/active-to chain.
+- **Margin at risk** on the Overview is the gap to 25% on each failing line ×
+  the cases on the record; quantities on failing lines are season-program
+  volumes, not single orders.
 
-- **Unit sales are generated, not listed.** Price Updates needs an arbitrary
-  date window over 18 items x 11 locations, which is not something to hand-write.
-  A seeded PRNG keyed on (item, location, day) produces daily units from a
-  per-item base rate, scaled by store size, Gulf Coast seasonality (spring break,
-  peak summer, the drop after Labor Day) and day of week. It is fully
-  reproducible — the same demo shows the same numbers twice — and any date range
-  sums identically every time.
-- On-hand is sized so each item carries a designed **weeks of supply** at its
-  recent run rate. That is what makes the boardshorts land at 14 weeks and the
-  souvenir tees at 3, and it is why sell-through spreads from 52% (branded
-  boardshorts) to 83% (souvenir tees) rather than clustering.
+- **Case shipments are generated, not listed.** Price Updates needs an
+  arbitrary date window over 11 items x 11 customers, which is not something to
+  hand-write. A seeded PRNG keyed on (item, customer, day) produces daily cases
+  from a per-item base rate, scaled by customer size, the item's crop-season
+  curve (apples peak in October, squash in November, blueberries in July) and
+  day of week (produce ships Monday to Friday). It is fully reproducible — the
+  same demo shows the same numbers twice — and any date range sums identically
+  every time.
+- Cases on hand are sized so each item carries a designed **days of cover** at
+  its recent run rate. That is what makes blueberry pints land at 9 days on a
+  12-day life and mini cucumbers at 8 on 12, while apples and squash sit on
+  days of cover against weeks of life.
 
 The Setup page renders a reconciliation table computed from the data at
 runtime, so the numbers can be defended live if someone interrogates them.
@@ -164,21 +176,22 @@ runtime, so the numbers can be defended live if someone interrogates them.
 ### Dates
 
 Every date derives from a single `AS_OF` constant in `src/lib/config.ts`. Order
-dates, price validity windows, markdown waves, and MAP waiver expiries are all
+dates, price validity windows, promotion windows and price history are all
 expressed as `iso(±n)` offsets from it. Nothing is hardcoded to a calendar date,
 so a demo reused weeks later does not show stale windows — move `AS_OF` and the
-whole book slides with it.
+whole book slides with it. The season label in the ribbon follows the Michigan
+harvest calendar (`seasonOf`).
 
 `isoToday()` in `src/lib/format.ts` returns `AS_OF`, not the wall clock, so
 default filter ranges follow it too.
 
 ### Real vs. invented
 
-Store locations, brand names, and a handful of product names are real — that is
-what makes the assortment land as *theirs*. Everything portrayed as a problem is
-invented: staff names, order numbers, program numbers, and the pricing decisions
-themselves. No real person or organisation is shown making a bad call. Vendor
-brands appear only as counterparties setting normal MAP and co-op terms.
+Bluestem Fresh Produce, its customers, its contracts and its staff are all
+fictional — they come from RSM's brand kit, so everything portrayed as a
+problem is already invented. The rep names on overrides are Bluestem's sales
+team from `employees.csv` (Tom Kowalski, Elena Petrov, Jamal Greene, Kate
+Sullivan, Victor Huang).
 
 ## 6. Design system
 
@@ -219,8 +232,8 @@ persona avatar and name from `BRAND.persona`. The sidebar sits below the ribbon
 and carries only navigation; the active link gets a 3px RSM Blue rail.
 
 The brand guide's header also lists a site selector (GRP / HRT / HOL / SAL).
-It is deliberately omitted here: this dataset is keyed on stores, not Bluestem
-sites, and a selector that changes nothing is a decoy.
+It is deliberately omitted here: pricing is keyed on customers and contracts,
+not on the ship-from site, and a selector that changes nothing is a decoy.
 
 The favicon is `public/favicon.png` (`favicon_64.png` from the brand zip). The
 lockup component is `src/components/BluestemLogo.tsx`.
@@ -238,33 +251,34 @@ Deploys to Cloudflare Pages (project `price-margin-agent`) via
 relative `base` so it works from any path, and routing is hash-based for the
 same reason.
 
+The dev server hangs on the OneDrive checkout; for anything recorded or
+screenshotted, serve a production build (`npm run build`, then
+`npx vite preview --port 5199 --strictPort`).
+
+The IFPA booth kit (tour video, title card, reel, voice-over script and
+presenter cheat sheet) lives in `demo-kit/` — see `demo-kit/README.md`.
+
 ## 8. Retargeting to another prospect
 
 1. Edit `BRAND` and `AS_OF` in `src/lib/config.ts`.
-2. Replace the product catalogue, stores, and vendor programs in
-   `src/data/mockData.ts`, keeping the failing/passing ratio roughly where it is
-   — about 30% of lines failing reads as insightful; a book that is mostly red
-   reads as alarmist.
+2. Replace the items, customers and contracts in `src/data/mockData.ts`,
+   keeping the failing/passing ratio roughly where it is — about 30% of lines
+   failing reads as insightful; a book that is mostly red reads as alarmist.
+   If the new domain has no shelf life, `ITEM_PROFILE.coverDays` and the
+   Price Updates cover column are the only places that assume one.
 3. Adjust the palette in `src/styles/theme.css` if the new brand needs it.
 4. `npm run build`, then check the Setup page's reconciliation block ties out.
+5. Update `demo-kit/scenes.mjs` so the tour captions and voice-over still name
+   real figures, then re-record (`node demo-kit/record.mjs`).
 
-### Still to do for the Bluestem data retarget
+The produce retarget mapped the original retail-apparel model like this:
 
-Step 2 has not been done for Bluestem. The current domain model is retail
-apparel: register overrides, own-label vs branded, vendor MAP floors and co-op
-waivers, a store estate with sell-through. A produce grower-packer-shipper
-does not have MAP floors or register overrides. The mapping to work out
-before touching `mockData.ts`:
-
-| Today | Bluestem equivalent |
+| Retail apparel (before) | Bluestem produce (now) |
 |---|---|
-| Register price overrides | Sales-order line price overrides below the 25% floor (`price_margin_alerts.csv`: causes are promo overlap, stale contract price, freight surcharge, raw cost increase) |
-| Retail vs vendor pricing modes | Retail (grocery chains, club) vs foodservice distributor contracts — the sibling rebate app already splits on this |
-| Vendor MAP floor + co-op waiver | Customer contract price + trade promotion window (`trade_promotions.csv`) |
-| Own label vs branded | Packed produce (`PK-*`) vs fresh-cut (`FC-*`) items, which carry very different margins |
-| Store estate / sell-through | Ship-to customers and sites (GRP / HRT / HOL / SAL); velocity per customer instead of per store |
-| Gulf Coast seasonality | Michigan harvest calendar — apples and squash in autumn, asparagus in spring, winter volume from partner growers |
-
-The personas in `employees.csv` (Kate Sullivan for club/mass, Elena Petrov for
-retail central, Jamal Greene for foodservice) should replace the invented
-override users. Everything portrayed as a problem stays fictional.
+| Register price overrides | Sales-order line price overrides below the 25% floor |
+| Retail vs vendor pricing modes | Retail customer price groups vs foodservice contracts |
+| Vendor MAP floor + co-op waiver | Price-group floor + trade-promotion window |
+| Vendor co-op allowance | Grower pool share on pooled fruit |
+| Own label vs branded | Fresh-cut (`FC-*`) vs packed fresh (`PK-*`) |
+| Store estate / sell-through / weeks of supply | Ship-to customers / case sell-through / days of cover vs shelf life |
+| Gulf Coast seasonality | Per-crop Michigan harvest curves |

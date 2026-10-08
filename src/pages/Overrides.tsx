@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { PRICE_OVERRIDES } from '../data/mockData'
-import { overrideMarginPct, overrideBreachesMap, type PriceOverride } from '../models/types'
+import { overrideMarginPct, overrideBreachesFloor, type PriceOverride } from '../models/types'
 import { money, pct, num, shortDate, isoDaysAgo, isoToday } from '../lib/format'
-import { BRAND, DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
+import { DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/useToast'
@@ -14,7 +14,7 @@ export function Overrides() {
   const [fromDate, setFromDate] = useState(isoDaysAgo(90))
   const [toDate, setToDate] = useState(isoToday())
   const [marginFilter, setMarginFilter] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
-  const [mapOnly, setMapOnly] = useState(false)
+  const [floorOnly, setFloorOnly] = useState(false)
   const [action, setAction] = useState<{ kind: ActionKind; row: PriceOverride } | null>(null)
   const [, showToast, toastNode] = useToast()
 
@@ -28,18 +28,18 @@ export function Overrides() {
     () =>
       inDateRange
         .filter((o) => overrideMarginPct(o) <= marginFilter)
-        .filter((o) => (mapOnly ? overrideBreachesMap(o) : true))
+        .filter((o) => (floorOnly ? overrideBreachesFloor(o) : true))
         .sort((a, b) => overrideMarginPct(a) - overrideMarginPct(b)),
-    [inDateRange, marginFilter, mapOnly],
+    [inDateRange, marginFilter, floorOnly],
   )
 
   const kpis = useMemo(() => {
     const margins = inDateRange.map(overrideMarginPct)
     const below = margins.filter((m) => m <= marginFilter).length
     const avg = margins.length ? margins.reduce((s, m) => s + m, 0) / margins.length : 0
-    const givenUp = inDateRange.reduce((s, o) => s + (o.originalPrice - o.overridePrice), 0)
-    const mapHits = inDateRange.filter(overrideBreachesMap).length
-    return { total: inDateRange.length, below, avg, givenUp, mapHits }
+    const givenUp = inDateRange.reduce((s, o) => s + (o.originalPrice - o.overridePrice) * o.cases, 0)
+    const floorHits = inDateRange.filter(overrideBreachesFloor).length
+    return { total: inDateRange.length, below, avg, givenUp, floorHits }
   }, [inDateRange, marginFilter])
 
   function completeAction() {
@@ -55,12 +55,12 @@ export function Overrides() {
   return (
     <>
       <header className="page-head">
-        <div className="eyebrow">Audit trail · Register price overrides</div>
+        <div className="eyebrow">Audit trail · Sales-order line price overrides</div>
         <h1>Override Audit</h1>
         <p className="lede">
-          Every order where a price was manually overridden at the register or on {BRAND.site}.
-          Filtered to margins at or below your threshold, ranked lowest margin first. Branded items
-          also show whether the override went under the vendor&rsquo;s minimum advertised price.
+          Every sales-order line where a rep typed over the system price, across retail and
+          foodservice. Filtered to margins at or below your threshold, ranked lowest margin first.
+          Packed-fresh items in a price group also show whether the override went under the floor.
         </p>
       </header>
 
@@ -77,16 +77,16 @@ export function Overrides() {
           sub="shown in the grid below"
         />
         <Kpi
-          label="Below vendor MAP"
-          value={num(kpis.mapHits)}
-          tone={kpis.mapHits > 0 ? 'red' : 'sage'}
-          sub="branded items only"
+          label="Below price floor"
+          value={num(kpis.floorHits)}
+          tone={kpis.floorHits > 0 ? 'red' : 'sage'}
+          sub="items in a floor price group"
         />
         <Kpi label="Average override margin" value={pct(kpis.avg)} sub="across the date range" />
         <Kpi
           label="Price given up"
           value={money(kpis.givenUp, { decimals: 0 })}
-          sub="original vs. override price"
+          sub="(original − override) × cases"
         />
       </div>
 
@@ -124,8 +124,8 @@ export function Overrides() {
         <label
           style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingBottom: 8 }}
         >
-          <input type="checkbox" checked={mapOnly} onChange={(e) => setMapOnly(e.target.checked)} />
-          MAP breaches only
+          <input type="checkbox" checked={floorOnly} onChange={(e) => setFloorOnly(e.target.checked)} />
+          Below floor only
         </label>
         <div className="spacer" />
         <span className="pill midnight">{rows.length} lines match</span>
@@ -138,11 +138,11 @@ export function Overrides() {
               <th>Product</th>
               <th>Item</th>
               <th>Category</th>
-              <th>Color / Size</th>
+              <th>Pack</th>
               <th className="num">Unit cost</th>
               <th className="num">Override price</th>
               <th className="num">Margin %</th>
-              <th className="num">Vendor MAP</th>
+              <th className="num">Price floor</th>
               <th>Reason code</th>
               <th>Overridden by</th>
               <th>Follow up</th>
@@ -152,18 +152,18 @@ export function Overrides() {
             {rows.map((o) => {
               const m = overrideMarginPct(o)
               const isRed = m <= marginFilter
-              const belowMap = overrideBreachesMap(o)
+              const belowFloor = overrideBreachesFloor(o)
               return (
                 <tr key={o.id}>
                   <td className="style-cell">
-                    <div className="style-name">{o.styleName}</div>
+                    <div className="style-name">{o.itemName}</div>
                     <div className="style-sub">
-                      {o.orderNumber} · {o.storeOrSite} · {shortDate(o.orderDate)}
+                      {o.orderNumber} · {o.customer} · {num(o.cases)} cs · {shortDate(o.orderDate)}
                     </div>
                   </td>
                   <td className="item-code">{o.itemNumber}</td>
                   <td>{o.category}</td>
-                  <td>{o.colorSize}</td>
+                  <td>{o.pack}</td>
                   <td className="num">{money(o.unitCost)}</td>
                   <td className="num">
                     {money(o.overridePrice)}
@@ -173,17 +173,17 @@ export function Overrides() {
                   </td>
                   <td className={`num ${isRed ? 'margin-red' : 'margin-ok'}`}>{pct(m)}</td>
                   <td className="num">
-                    {o.mapFloor === undefined ? (
+                    {o.floorPrice === undefined ? (
                       <span style={{ color: 'var(--ink-300)' }}>—</span>
-                    ) : belowMap ? (
+                    ) : belowFloor ? (
                       <span className="map-breach">
-                        {money(o.mapFloor)}
+                        {money(o.floorPrice)}
                         <div style={{ fontSize: 11, fontWeight: 500 }}>
-                          −{money(o.mapFloor - o.overridePrice)} under
+                          −{money(o.floorPrice - o.overridePrice)} under
                         </div>
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--ink-500)' }}>{money(o.mapFloor)}</span>
+                      <span style={{ color: 'var(--ink-500)' }}>{money(o.floorPrice)}</span>
                     )}
                   </td>
                   <td>
@@ -213,7 +213,7 @@ export function Overrides() {
               <tr>
                 <td colSpan={11} style={{ textAlign: 'center', color: 'var(--ink-400)', padding: 32 }}>
                   No overrides at or below {marginFilter}% margin
-                  {mapOnly ? ' that also breach MAP' : ''} in this date range.
+                  {floorOnly ? ' that are also below floor' : ''} in this date range.
                 </td>
               </tr>
             )}
@@ -223,7 +223,7 @@ export function Overrides() {
 
       {action && (
         <Modal
-          title={action.kind === 'email' ? 'Email the user' : 'Create a D365 case'}
+          title={action.kind === 'email' ? 'Email the rep' : 'Create a D365 case'}
           sub={
             action.kind === 'email'
               ? `Draft a follow-up to ${action.row.overriddenBy} about this override`
@@ -245,26 +245,26 @@ export function Overrides() {
             <dt>Order</dt>
             <dd>
               {action.row.orderNumber} · {shortDate(action.row.orderDate)} · {action.row.channel} ·{' '}
-              {action.row.storeOrSite}
+              {action.row.customer} · {num(action.row.cases)} cases
             </dd>
             <dt>Product</dt>
             <dd>
-              {action.row.styleName} ({action.row.itemNumber}) · {action.row.colorSize}
+              {action.row.itemName} ({action.row.itemNumber}) · {action.row.pack}
             </dd>
             <dt>Override</dt>
             <dd>
               {money(action.row.originalPrice)} → {money(action.row.overridePrice)} ·{' '}
               <span className="margin-red">{pct(overrideMarginPct(action.row))} margin</span>
             </dd>
-            {action.row.mapFloor !== undefined && (
+            {action.row.floorPrice !== undefined && (
               <>
-                <dt>Vendor MAP</dt>
+                <dt>Price floor</dt>
                 <dd>
-                  {money(action.row.mapFloor)}
-                  {overrideBreachesMap(action.row) ? (
+                  {money(action.row.floorPrice)}
+                  {overrideBreachesFloor(action.row) ? (
                     <span className="map-breach">
                       {' '}
-                      · {money(action.row.mapFloor - action.row.overridePrice)} under the floor
+                      · {money(action.row.floorPrice - action.row.overridePrice)} under the floor
                     </span>
                   ) : (
                     ' · at or above the floor'
@@ -274,7 +274,7 @@ export function Overrides() {
             )}
             <dt>Reason</dt>
             <dd>{action.row.reasonCode}</dd>
-            <dt>User</dt>
+            <dt>Rep</dt>
             <dd>
               {action.row.overriddenBy} · {action.row.overriddenByEmail}
             </dd>
@@ -287,9 +287,9 @@ export function Overrides() {
                 rows={6}
                 defaultValue={
                   `Hi ${action.row.overriddenBy.split(' ')[0]},\n\n` +
-                  `On order ${action.row.orderNumber} the price of ${action.row.styleName} (${action.row.itemNumber}) was overridden to ${money(action.row.overridePrice)}, which lands at ${pct(overrideMarginPct(action.row))} margin.` +
-                  (overrideBreachesMap(action.row)
-                    ? ` That is also ${money(action.row.mapFloor! - action.row.overridePrice)} below the ${money(action.row.mapFloor!)} minimum advertised price we are held to under the vendor program, so it needs to be logged.`
+                  `On order ${action.row.orderNumber} the price of ${action.row.itemName} (${action.row.itemNumber}) was overridden to ${money(action.row.overridePrice)}, which lands at ${pct(overrideMarginPct(action.row))} margin.` +
+                  (overrideBreachesFloor(action.row)
+                    ? ` That is also ${money(action.row.floorPrice! - action.row.overridePrice)} below the ${money(action.row.floorPrice!)} price floor for this customer group, and there is no active trade promotion behind it.`
                     : '') +
                   `\n\nCould you add context to the "${action.row.reasonCode}" reason code?\n\nThanks,\nPricing team`
                 }
@@ -301,8 +301,8 @@ export function Overrides() {
               <input
                 className="input"
                 defaultValue={
-                  overrideBreachesMap(action.row)
-                    ? `MAP breach review · ${action.row.orderNumber} · ${action.row.itemNumber}`
+                  overrideBreachesFloor(action.row)
+                    ? `Below-floor review · ${action.row.orderNumber} · ${action.row.itemNumber}`
                     : `Price override review · ${action.row.orderNumber} · ${action.row.itemNumber}`
                 }
               />

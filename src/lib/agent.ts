@@ -2,14 +2,14 @@
 // Rule-based router (offline default). Every number it quotes is computed from
 // the dataset at call time — nothing is written into the replies by hand.
 
-import { ECOM_CODE, LOCATIONS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, STORES } from '../data/mockData'
+import { CUSTOMERS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, coverDaysFor, shelfLifeFor } from '../data/mockData'
 import {
   overrideMarginPct,
-  overrideBreachesMap,
+  overrideBreachesFloor,
   lineMarginPct,
-  lineUnfundedMarginPct,
+  lineUnpooledMarginPct,
   lineSalesPrice,
-  lineBreachesMap,
+  lineBreachesFloor,
 } from '../models/types'
 import { AS_OF, DEFAULT_RETAIL_MARGIN_TARGET, iso } from './config'
 import { money, pct, shortDate } from './format'
@@ -21,37 +21,39 @@ export interface AgentReply {
 export const SUGGESTED_PROMPTS = [
   'How many price overrides this month?',
   'Which override has the worst margin?',
-  'Show pricing setup below 45% margin',
-  'Are we breaking MAP anywhere?',
-  'What should we do about the boardshorts?',
-  'Summarize the vendor program recommendations',
+  `Show pricing setup below ${DEFAULT_RETAIL_MARGIN_TARGET}% margin`,
+  'Are we below floor anywhere?',
+  'What should we do about the blueberries?',
+  'Summarize the foodservice contract recommendations',
 ]
 
 export function askAgent(raw: string): AgentReply {
   const q = raw.toLowerCase()
 
-  // ── MAP / vendor compliance ──
-  if (q.includes('map') || q.includes('compliance') || q.includes('breach') || q.includes('waiver')) {
-    const breaches = PRICING_SETUP.filter((l) => lineBreachesMap(l, AS_OF))
-    const waived = PRICING_SETUP.filter(
-      (l) => l.mapFloor !== undefined && lineSalesPrice(l) < l.mapFloor && !lineBreachesMap(l, AS_OF),
+  // ── price floor / promotion compliance ──
+  if (q.includes('floor') || q.includes('leak') || q.includes('expired') || q.includes('promo')) {
+    const breaches = PRICING_SETUP.filter((l) => lineBreachesFloor(l, AS_OF))
+    const onPromo = PRICING_SETUP.filter(
+      (l) => l.floorPrice !== undefined && lineSalesPrice(l) < l.floorPrice && !lineBreachesFloor(l, AS_OF),
     )
     if (breaches.length === 0) {
-      return { text: 'Every MAP-covered line is either at or above its floor, or inside an approved vendor markdown window. Nothing to escalate.' }
+      return { text: 'Every floor-covered line is either at or above its floor, or inside an approved trade promotion. Nothing to escalate.' }
     }
     const lines = breaches
       .map(
         (l) =>
-          `· ${l.styleName} (${l.itemNumber}) — ${l.channelDetail}\n` +
-          `  sells at ${money(lineSalesPrice(l))} against a ${money(l.mapFloor!)} floor` +
-          (l.mapWaiverUntil ? ` · waiver expired ${shortDate(l.mapWaiverUntil)}` : ' · no waiver on file'),
+          `· ${l.itemName} (${l.itemNumber}) — ${l.channelDetail}\n` +
+          `  sells at ${money(lineSalesPrice(l))} against a ${money(l.floorPrice!)} floor` +
+          (l.promoUntil
+            ? ` · ${l.discount?.promoId ?? 'promotion'} ended ${shortDate(l.promoUntil)}`
+            : ' · no promotion on file'),
       )
       .join('\n')
     return {
       text:
-        `${breaches.length} line${breaches.length === 1 ? '' : 's'} price below a vendor MAP floor with no active waiver:\n\n${lines}\n\n` +
-        `${waived.length} further line${waived.length === 1 ? ' is' : 's are'} below MAP but inside an approved co-op window, so ${waived.length === 1 ? 'it is' : 'they are'} compliant.\n\n` +
-        `Fastest fix is to restore the price to the floor; the alternative is to get the waiver extended before the next flush.`,
+        `${breaches.length} line${breaches.length === 1 ? '' : 's'} price below floor with no active trade promotion:\n\n${lines}\n\n` +
+        `${onPromo.length} further line${onPromo.length === 1 ? ' is' : 's are'} below floor but inside an approved promotion window, so ${onPromo.length === 1 ? 'it is' : 'they are'} fine.\n\n` +
+        `Fastest fix is to restore the price to the floor; the alternative is to extend the promotion with approval.`,
     }
   }
 
@@ -63,18 +65,18 @@ export function askAgent(raw: string): AgentReply {
     const monthStart = iso(-30)
     const inWindow = PRICE_OVERRIDES.filter((o) => o.orderDate >= monthStart && o.orderDate <= AS_OF)
     const below = inWindow.filter((o) => overrideMarginPct(o) < DEFAULT_RETAIL_MARGIN_TARGET)
-    const mapHits = inWindow.filter(overrideBreachesMap)
+    const floorHits = inWindow.filter(overrideBreachesFloor)
     const worst = [...inWindow].sort((a, b) => overrideMarginPct(a) - overrideMarginPct(b))[0]
     return {
       text:
-        `In the last 30 days I count ${inWindow.length} manual price overrides, ` +
+        `In the last 30 days I count ${inWindow.length} order-line price overrides, ` +
         `${below.length} of them below ${DEFAULT_RETAIL_MARGIN_TARGET}% margin` +
-        (mapHits.length ? `, and ${mapHits.length} that went under a vendor MAP floor` : '') +
+        (floorHits.length ? `, and ${floorHits.length} that went under the price floor` : '') +
         `.\n\n` +
-        `The worst is ${worst.styleName} (${worst.itemNumber}, ${worst.colorSize}) on order ${worst.orderNumber}: ` +
-        `overridden to ${money(worst.overridePrice)} against a ${money(worst.unitCost)} cost — ` +
-        `${pct(overrideMarginPct(worst))} margin, reason "${worst.reasonCode}", by ${worst.overriddenBy} at ${worst.storeOrSite}.\n\n` +
-        `Open the Override Audit tab to email the user or raise a D365 case.`,
+        `The worst is ${worst.itemName} (${worst.itemNumber}, ${worst.pack}) on order ${worst.orderNumber}: ` +
+        `overridden to ${money(worst.overridePrice)} against a ${money(worst.unitCost)} case cost — ` +
+        `${pct(overrideMarginPct(worst))} margin, reason "${worst.reasonCode}", by ${worst.overriddenBy} for ${worst.customer}.\n\n` +
+        `Open the Override Audit tab to email the rep or raise a D365 case.`,
     }
   }
 
@@ -83,12 +85,12 @@ export function askAgent(raw: string): AgentReply {
     const worst = [...PRICE_OVERRIDES].sort((a, b) => overrideMarginPct(a) - overrideMarginPct(b))[0]
     return {
       text:
-        `Lowest-margin override on file: ${worst.styleName} (${worst.itemNumber}, ${worst.colorSize}).\n` +
+        `Lowest-margin override on file: ${worst.itemName} (${worst.itemNumber}, ${worst.pack}).\n` +
         `Original ${money(worst.originalPrice)} → overridden to ${money(worst.overridePrice)} ` +
         `(cost ${money(worst.unitCost)}) = ${pct(overrideMarginPct(worst))} margin.\n` +
-        `Reason: ${worst.reasonCode} · User: ${worst.overriddenBy} · ${worst.storeOrSite} · ${shortDate(worst.orderDate)}` +
-        (overrideBreachesMap(worst)
-          ? `\n\nIt also landed ${money(worst.mapFloor! - worst.overridePrice)} under the ${money(worst.mapFloor!)} vendor MAP floor.`
+        `Reason: ${worst.reasonCode} · Rep: ${worst.overriddenBy} · ${worst.customer} · ${shortDate(worst.orderDate)}` +
+        (overrideBreachesFloor(worst)
+          ? `\n\nIt also landed ${money(worst.floorPrice! - worst.overridePrice)} under the ${money(worst.floorPrice!)} price floor.`
           : ''),
     }
   }
@@ -108,77 +110,75 @@ export function askAgent(raw: string): AgentReply {
       .slice(0, 6)
       .map(
         (l) =>
-          `· ${l.styleName} (${l.itemNumber}) — ${l.mode} · ${l.channelDetail} — ` +
+          `· ${l.itemName} (${l.itemNumber}) — ${l.mode} · ${l.channelDetail} — ` +
           `sells at ${money(lineSalesPrice(l))} = ${pct(lineMarginPct(l))}` +
-          (l.vendorAllowancePct ? ` (${pct(lineUnfundedMarginPct(l))} before the ${l.vendorAllowancePct}% vendor allowance)` : ''),
+          (l.poolSharePct ? ` (${pct(lineUnpooledMarginPct(l))} before the ${l.poolSharePct}% grower pool share)` : ''),
       )
       .join('\n')
-    const branded = hits.filter((l) => l.productLine === 'Branded').length
+    const packed = hits.filter((l) => l.productLine === 'Packed fresh').length
     return {
       text:
         `${hits.length} pricing setup line${hits.length === 1 ? '' : 's'} at or below ${threshold}% margin:\n\n${lines}` +
         (hits.length > 6 ? `\n…and ${hits.length - 6} more.` : '') +
-        `\n\n${branded} of ${hits.length} are branded product, where the floor is set by the vendor rather than by us. ` +
+        `\n\n${packed} of ${hits.length} are packed fresh, where list margin is thin enough that a routine deal crosses the floor. ` +
         `Use Margin Threshold Test to select lines and draft a reprice.`,
     }
   }
 
-  // ── aging boardshorts / off-season inventory ──
+  // ── short-life inventory ──
   if (
-    q.includes('boardshort') ||
-    q.includes('aging') ||
-    q.includes('weeks of supply') ||
-    q.includes('off-season') ||
-    q.includes('off season')
+    q.includes('blueberr') ||
+    q.includes('berry') ||
+    q.includes('shelf') ||
+    q.includes('cover') ||
+    q.includes('shrink')
   ) {
     const rec = RECOMMENDATIONS.find((r) => r.id === 'REC-RTL-5')!
-    const ripCurl = PRICING_SETUP.find((l) => l.id === 'PRC-VEN-06')!
+    const berries = PRICING_SETUP.find((l) => l.id === 'PRC-RTL-05')!
+    const cover = coverDaysFor(berries.itemNumber, berries.customerCodes ?? [])
     return {
       text:
         `${rec.title}. ${rec.detail}\n` +
         rec.bullets!.map((b) => `· ${b}`).join('\n') +
         `\n${rec.impact}.\n\n` +
-        `Worth knowing before you cut: the Rip Curl Surflite is already at ${pct(lineMarginPct(ripCurl))} margin ` +
-        `and ${money(ripCurl.mapFloor! - lineSalesPrice(ripCurl))} under its ${money(ripCurl.mapFloor!)} MAP floor with the waiver expired. ` +
-        `A transfer to the South Florida stores protects more margin than a deeper markdown does.`,
+        `Measured now: ${cover.toFixed(1)} days of cover against a ${shelfLifeFor(berries.itemNumber)}-day shelf life, ` +
+        `and the e-commerce price is already ${money(lineSalesPrice(berries))} — exactly on its floor at ${pct(lineMarginPct(berries))} margin. ` +
+        `Diverting to fresh-cut protects more margin than a deeper cut can.`,
     }
   }
 
-  // ── vendor programs ──
+  // ── foodservice contracts ──
   if (
-    q.includes('vendor') ||
-    q.includes('brand') ||
-    q.includes('quiksilver') ||
-    q.includes('roxy') ||
-    q.includes('volcom') ||
-    q.includes('rip curl') ||
-    q.includes('co-op') ||
-    q.includes('coop')
+    q.includes('foodservice') ||
+    q.includes('contract') ||
+    q.includes('keystone') ||
+    q.includes('windy city') ||
+    q.includes('pool')
   ) {
-    const recs = RECOMMENDATIONS.filter((r) => r.audience === 'Vendor')
-    const funded = PRICING_SETUP.filter((l) => (l.vendorAllowancePct ?? 0) > 0)
+    const recs = RECOMMENDATIONS.filter((r) => r.audience === 'Foodservice')
+    const pooled = PRICING_SETUP.filter((l) => (l.poolSharePct ?? 0) > 0)
     return {
       text:
-        `${recs.length} open vendor program recommendations:\n\n` +
+        `${recs.length} open foodservice contract recommendations:\n\n` +
         recs.map((r) => `· ${r.title}${r.impact ? ` — ${r.impact}` : ''}`).join('\n') +
-        `\n\n${funded.length} of ${PRICING_SETUP.length} priced lines currently carry co-op funding. ` +
-        `That allowance is the difference between a markdown that holds margin and one that does not.`,
+        `\n\n${pooled.length} of ${PRICING_SETUP.length} priced lines currently carry a grower pool share. ` +
+        `On pooled apples that share is the difference between a promotion that holds margin and one that does not.`,
     }
   }
 
-  // ── stores ──
-  if (q.includes('store') || q.includes('location') || q.includes('estate')) {
-    const byStore = new Map<string, number>()
-    for (const o of PRICE_OVERRIDES.filter((x) => x.channel === 'Store')) {
-      byStore.set(o.storeOrSite, (byStore.get(o.storeOrSite) ?? 0) + 1)
+  // ── customers ──
+  if (q.includes('customer') || q.includes('retailer') || q.includes('chain')) {
+    const byCustomer = new Map<string, number>()
+    for (const o of PRICE_OVERRIDES) {
+      byCustomer.set(o.customer, (byCustomer.get(o.customer) ?? 0) + 1)
     }
-    const top = [...byStore.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
+    const top = [...byCustomer.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
     return {
       text:
-        `The estate is ${STORES.length} locations — ${STORES.filter((s) => s.state === 'FL').length} in Florida and ` +
-        `${STORES.filter((s) => s.state === 'AL').length} in Alabama — plus ${LOCATIONS.find((l) => l.code === ECOM_CODE)?.name ?? 'the ecommerce site'}.\n\n` +
-        `Stores logging the most price overrides:\n` +
-        top.map(([s, n]) => `· ${s} — ${n} override${n === 1 ? '' : 's'}`).join('\n'),
+        `The retail book prices ${CUSTOMERS.length} ship-to customers across ${new Set(CUSTOMERS.map((c) => c.state)).size} states, ` +
+        `plus the foodservice contracts.\n\n` +
+        `Customers with the most order-line overrides:\n` +
+        top.map(([c, n]) => `· ${c} — ${n} override${n === 1 ? '' : 's'}`).join('\n'),
     }
   }
 
@@ -187,10 +187,10 @@ export function askAgent(raw: string): AgentReply {
     text:
       `I can help with:\n` +
       `· Override audit — "How many price overrides this month?"\n` +
-      `· Threshold tests — "Show pricing setup below 40% margin"\n` +
-      `· MAP compliance — "Are we breaking MAP anywhere?"\n` +
-      `· Off-season inventory — "What should we do about the boardshorts?"\n` +
-      `· Vendor programs — "Summarize the vendor program recommendations"\n\n` +
+      `· Threshold tests — "Show pricing setup below 20% margin"\n` +
+      `· Price floors — "Are we below floor anywhere?"\n` +
+      `· Short-life inventory — "What should we do about the blueberries?"\n` +
+      `· Foodservice — "Summarize the foodservice contract recommendations"\n\n` +
       `Everything I answer is computed from the same data the dashboard uses.`,
   }
 }

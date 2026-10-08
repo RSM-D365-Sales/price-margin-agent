@@ -3,14 +3,14 @@ import { reconciliation } from '../data/mockData'
 import {
   BRAND,
   DEFAULT_RETAIL_MARGIN_TARGET,
-  DEFAULT_VENDOR_MARGIN_FLOOR,
+  DEFAULT_FOODSERVICE_MARGIN_FLOOR,
 } from '../lib/config'
 import { useToast } from '../components/useToast'
 
 export function Setup() {
   const [liveMode, setLiveMode] = useState(false)
   const [minMargin, setMinMargin] = useState(DEFAULT_RETAIL_MARGIN_TARGET)
-  const [vendorFloor, setVendorFloor] = useState(DEFAULT_VENDOR_MARGIN_FLOOR)
+  const [foodserviceFloor, setFoodserviceFloor] = useState(DEFAULT_FOODSERVICE_MARGIN_FLOOR)
   const [, showToast, toastNode] = useToast()
 
   const recon = useMemo(() => reconciliation(minMargin), [minMargin])
@@ -60,7 +60,7 @@ export function Setup() {
         <div className="card setup-card">
           <h3>Margin guardrails</h3>
           <div className="field">
-            <label>Retail margin threshold %</label>
+            <label>Order-line margin floor %</label>
             <input
               type="number"
               className="input"
@@ -70,13 +70,13 @@ export function Setup() {
             />
           </div>
           <div className="field">
-            <label>Vendor program minimum margin % (discount approvals)</label>
+            <label>Foodservice contract minimum margin % (VP Sales approval)</label>
             <input
               type="number"
               className="input"
               style={{ width: 120 }}
-              value={vendorFloor}
-              onChange={(e) => setVendorFloor(Number(e.target.value))}
+              value={foodserviceFloor}
+              onChange={(e) => setFoodserviceFloor(Number(e.target.value))}
             />
           </div>
           <div className="toggle-row">
@@ -84,11 +84,11 @@ export function Setup() {
             <input type="checkbox" defaultChecked />
           </div>
           <div className="toggle-row">
-            <span>Require reason code on every override</span>
+            <span>Require a reason code on every order-line override</span>
             <input type="checkbox" defaultChecked />
           </div>
           <div className="toggle-row">
-            <span>Block register overrides below vendor MAP</span>
+            <span>Block overrides below the price floor without a promotion</span>
             <input type="checkbox" defaultChecked />
           </div>
         </div>
@@ -104,11 +104,11 @@ export function Setup() {
             <input className="input" defaultValue={`pricing@${BRAND.emailDomain}`} />
           </div>
           <div className="toggle-row">
-            <span>Auto-create case when margin &lt; 25%</span>
+            <span>Auto-create case when margin &lt; 15%</span>
             <input type="checkbox" defaultChecked />
           </div>
           <div className="toggle-row">
-            <span>Auto-create case on any MAP breach</span>
+            <span>Auto-create case when a promo price outlives its window</span>
             <input type="checkbox" defaultChecked />
           </div>
         </div>
@@ -160,7 +160,7 @@ export function Setup() {
           <p style={{ margin: '14px 0 0', fontSize: 12.5, color: 'var(--ink-500)', lineHeight: 1.6 }}>
             Every date in the dataset is derived from a single as-of value in{' '}
             <span className="mono">src/lib/config.ts</span>. Moving that one constant slides the
-            whole book — order dates, price windows, markdown waves, and MAP waivers — so the demo
+            whole book — order dates, price windows, and trade-promotion windows — so the demo
             never shows stale dates.
           </p>
         </div>

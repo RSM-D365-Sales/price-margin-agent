@@ -30,11 +30,15 @@ export const BRAND = {
  * the fastest way to lose the room. Move this one value and the whole dataset
  * (order dates, price validity, markdown waves, aging) slides with it.
  */
-export const AS_OF = '2026-09-01'
+export const AS_OF = '2026-10-08'
 
-/** Margin floors the guardrails default to. */
-export const DEFAULT_RETAIL_MARGIN_TARGET = 45
-export const DEFAULT_VENDOR_MARGIN_FLOOR = 38
+/**
+ * Margin floors the guardrails default to. 25% is Bluestem's order-line floor
+ * (FloorPct in the brand kit's price_margin_alerts.csv); foodservice contracts
+ * can be approved down to 20% by the VP Sales.
+ */
+export const DEFAULT_RETAIL_MARGIN_TARGET = 25
+export const DEFAULT_FOODSERVICE_MARGIN_FLOOR = 20
 
 /** ISO date `offsetDays` from AS_OF (negative = in the past). */
 export function iso(offsetDays = 0): string {
@@ -43,13 +47,16 @@ export function iso(offsetDays = 0): string {
   return d.toISOString().slice(0, 10)
 }
 
-/** Retail season label for a date, driven by AS_OF's calendar — not hardcoded. */
+/**
+ * Michigan harvest-calendar season for a date, driven by AS_OF's calendar —
+ * not hardcoded. Winter volume comes from partner growers in CA, AZ and MX.
+ */
 export function seasonOf(isoDate: string): string {
   const m = Number(isoDate.slice(5, 7))
-  if (m >= 3 && m <= 4) return 'Spring Break'
-  if (m >= 5 && m <= 8) return 'Peak Summer'
-  if (m === 9 || m === 10) return 'Post-Labor Day'
-  return 'Snowbird'
+  if (m >= 4 && m <= 6) return 'Asparagus & Early Berry'
+  if (m === 7 || m === 8) return 'Blueberry & Sweet Corn'
+  if (m >= 9 && m <= 11) return 'Apple & Squash Harvest'
+  return 'Winter Partner Supply'
 }
 
 /** The season the demo opens in. */

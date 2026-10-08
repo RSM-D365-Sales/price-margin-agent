@@ -1,16 +1,16 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, STORES } from '../data/mockData'
+import { CUSTOMERS, FOODSERVICE_CONTRACTS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS } from '../data/mockData'
 import {
   overrideMarginPct,
-  overrideBreachesMap,
+  overrideBreachesFloor,
   lineMarginPct,
   lineSalesPrice,
   lineEffectiveCost,
-  lineBreachesMap,
+  lineBreachesFloor,
 } from '../models/types'
 import { money0, num, pct, shortDate } from '../lib/format'
-import { AS_OF, BRAND, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
+import { AS_OF, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 
 const CARDS = [
@@ -18,31 +18,31 @@ const CARDS = [
     to: '/overrides',
     glyph: '✎',
     title: 'Override Audit',
-    body: 'Every order where a register price was manually overridden — margin, reason code, the store, and whether it went under a vendor MAP floor.',
+    body: 'Every sales-order line where a rep typed over the system price — margin, reason code, the customer, and whether it went under the price floor.',
   },
   {
     to: '/threshold-test',
     glyph: '◮',
     title: 'Margin Threshold Test',
-    body: 'Find all pricing setup at or below a margin % across the retail estate and the vendor programs — then let the agent draft new prices, uplifts, or discounts.',
+    body: 'Find all pricing setup at or below a margin % across retail price groups and foodservice contracts — then let the agent draft new prices, uplifts, or discounts.',
   },
   {
     to: '/price-updates',
     glyph: '↗',
     title: 'Price Updates',
-    body: 'Rank the retail book by sell-through and sales velocity, then roll a price change out to chosen stores or a region — solved to a margin, or as a flat % move.',
+    body: 'Rank the retail book by case velocity, sell-through and days of cover, then roll a price change out to chosen customers or a segment — solved to a margin, or as a flat % move.',
   },
   {
     to: '/price-history',
     glyph: '⧖',
     title: 'Price History',
-    body: 'Audit report for one product and one price scope: retail list, a single channel, one store, or a vendor MAP schedule — every change and the window it was live for.',
+    body: 'Audit report for one item and one price scope: Bluestem list, a customer price group, or one contract line — every change and the window it was live for.',
   },
   {
     to: '/recommendations',
     glyph: '✦',
     title: 'AI Recommendations',
-    body: 'Markdown timing, price increases, kiosk uplifts, and vendor program guidance — grounded in the KPIs the agent monitors.',
+    body: 'Promotion timing, price holds and increases, short-life inventory, and foodservice contract guidance — grounded in the KPIs the agent monitors.',
   },
 ]
 
@@ -51,10 +51,10 @@ export function Overview() {
     const windowStart = iso(-30)
     const overrides30 = PRICE_OVERRIDES.filter((o) => o.orderDate >= windowStart)
     const thin = overrides30.filter((o) => overrideMarginPct(o) < DEFAULT_RETAIL_MARGIN_TARGET).length
-    const mapOverrides = PRICE_OVERRIDES.filter(overrideBreachesMap).length
+    const floorOverrides = PRICE_OVERRIDES.filter(overrideBreachesFloor).length
 
     const failing = PRICING_SETUP.filter((l) => lineMarginPct(l) <= DEFAULT_RETAIL_MARGIN_TARGET)
-    const breaches = PRICING_SETUP.filter((l) => lineBreachesMap(l, AS_OF))
+    const breaches = PRICING_SETUP.filter((l) => lineBreachesFloor(l, AS_OF))
     const openRecs = RECOMMENDATIONS.filter((r) => r.status === 'Open').length
 
     // Margin at risk: for each failing line, the revenue gap between what it
@@ -71,24 +71,24 @@ export function Overview() {
     }
     const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1])
 
-    // Blended margin, own label vs branded — the core economics of the book.
+    // Blended margin, fresh-cut vs packed fresh — the core economics of the book.
     const avg = (ls: typeof PRICING_SETUP) =>
       ls.length ? ls.reduce((s, l) => s + lineMarginPct(l), 0) / ls.length : 0
-    const ownLabel = avg(PRICING_SETUP.filter((l) => l.productLine === 'Own label'))
-    const branded = avg(PRICING_SETUP.filter((l) => l.productLine === 'Branded'))
+    const freshCut = avg(PRICING_SETUP.filter((l) => l.productLine === 'Fresh-cut'))
+    const packed = avg(PRICING_SETUP.filter((l) => l.productLine === 'Packed fresh'))
 
     return {
       overrides30: overrides30.length,
       thin,
-      mapOverrides,
+      floorOverrides,
       failing: failing.length,
       breaches: breaches.length,
       openRecs,
       atRisk,
       cats,
       maxCat: cats.length ? cats[0][1] : 1,
-      ownLabel,
-      branded,
+      freshCut,
+      packed,
     }
   }, [])
 
@@ -100,9 +100,10 @@ export function Overview() {
         </div>
         <h1>Pricing &amp; Margin Workspace</h1>
         <p className="lede">
-          One place to audit register price overrides, stress-test discount thresholds, trace price
-          history, and act on pricing guidance — across {BRAND.site}, {STORES.length} coastal store
-          locations, and the vendor programs the branded assortment is bought under.
+          One place to audit order-line price overrides, stress-test discount thresholds, trace price
+          history, and act on pricing guidance — across {CUSTOMERS.length} retail customers and{' '}
+          {FOODSERVICE_CONTRACTS.length} foodservice contracts, packed and shipped out of Grand
+          Rapids, Hart and Holland.
         </p>
       </header>
 
@@ -113,12 +114,13 @@ export function Overview() {
           </span>
           <span>
             <b>
-              {stats.breaches} pricing line{stats.breaches === 1 ? '' : 's'} sit below a vendor MAP
-              floor with no active waiver.
+              {stats.breaches} pricing line{stats.breaches === 1 ? '' : 's'} sit below the price
+              floor with no active trade promotion.
             </b>{' '}
-            Below-MAP pricing inside an approved co-op window is fine; these are outside one.{' '}
+            Below-floor pricing inside an approved promotion window is fine; these are promo prices that
+            outlived their window.{' '}
             <Link to="/threshold-test" style={{ color: 'inherit', fontWeight: 600 }}>
-              Review on the vendor tab →
+              Review in the threshold test →
             </Link>
           </span>
         </div>
@@ -137,12 +139,12 @@ export function Overview() {
           sub={`of ${PRICING_SETUP.length} active price records`}
         />
         <Kpi
-          label="MAP breaches"
+          label="Below floor, no promo"
           value={num(stats.breaches)}
           tone={stats.breaches ? 'red' : 'sage'}
-          sub="no active vendor waiver"
+          sub="promo prices that outlived their window"
         />
-        <Kpi label="Open recommendations" value={num(stats.openRecs)} sub="retail + vendor agents" />
+        <Kpi label="Open recommendations" value={num(stats.openRecs)} sub="retail + foodservice agents" />
         <Kpi
           label="Margin at risk"
           value={money0(stats.atRisk)}
@@ -184,11 +186,11 @@ export function Overview() {
               alignItems: 'center',
             }}
           >
-            <span className="pill grey">Own label · {pct(stats.ownLabel)} avg margin</span>
-            <span className="pill midnight">Branded · {pct(stats.branded)} avg margin</span>
+            <span className="pill grey">Fresh-cut · {pct(stats.freshCut)} avg margin</span>
+            <span className="pill midnight">Packed fresh · {pct(stats.packed)} avg margin</span>
             <span style={{ fontSize: 12.5, color: 'var(--ink-500)' }}>
-              Own-label souvenir and beach goods absorb a deep markdown and still clear the target.
-              Branded surf does not — which is why almost every failing line is branded.
+              Fresh-cut absorbs a 15% promotion and still clears the floor. Packed fresh does not — a
+              routine 10% deal takes it under, which is why every failing line is packed fresh.
             </span>
           </div>
         </div>

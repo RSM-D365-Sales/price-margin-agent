@@ -1,642 +1,638 @@
 // ── Pricing & Margin Workspace · demo dataset ────────────────────────────
 //
-// NOTE (Sep 2026): the app is branded for Bluestem Fresh Produce, but this
-// dataset is still the coastal beachwear retail book it was first built on.
-// Retargeting it to produce is a domain rethink — see DESIGN.md §8.
-//
 // This file is the single source of truth for the demo. Every figure here is
-// synthetic and hand-built to be internally consistent:
+// synthetic and hand-built to be internally consistent. Items, costs, list
+// prices, shelf lives, customers and people come from the Bluestem brand kit
+// (Bluestem_Brand_v2_and_Data.zip → items.csv, customers.csv, employees.csv);
+// the order lines, prices, promotions and decisions are invented for this app.
 //
-//   · Own-label souvenir/beach goods run 65–82% margin (cheap to source,
-//     bought on impulse by tourists who do not comparison-shop).
-//   · Branded surf (Quiksilver, Roxy, Volcom, O'Neill, Rip Curl, Vans, Fox)
-//     runs at keystone — ~45–50% at full price — and the brand sets a MAP
-//     floor plus how much markdown it will co-fund.
-//   That gap is the demo's whole argument: discounting own-label is cheap,
-//   discounting branded is where margin quietly disappears.
+//   · Fresh-cut (FC-*) is value-added at the Grand Rapids plant and lists at
+//     ~38–44% margin. It absorbs a 15% promotion and still clears 25%.
+//   · Packed fresh (PK-*) is whole produce in a pouch, clamshell or carton and
+//     lists at ~28–32%. A 10% deal takes it under the 25% floor.
+//   That gap is the demo's whole argument: promoting fresh-cut is cheap,
+//   promoting packed fresh is where margin quietly disappears.
 //
 // Every date is derived from AS_OF in src/lib/config.ts. Move that one value
-// and the entire dataset — order dates, price windows, markdown waves, MAP
-// waivers — slides with it. Nothing here is hardcoded to a calendar date.
+// and the entire dataset — order dates, price windows, promotion windows —
+// slides with it. Nothing here is hardcoded to a calendar date.
 //
-// Store locations are a real Gulf Coast retail estate (from the original build). Staff names,
-// order numbers, customer-facing incidents and vendor program numbers are
-// invented; no real person is portrayed as making a bad pricing call.
+// Bluestem Fresh Produce, its customers and its staff are all fictional.
 
 import { iso, AS_OF } from '../lib/config'
+import { shortDate } from '../lib/format'
 import type {
   PriceOverride,
   PricingSetupLine,
   PriceHistoryRecord,
   Recommendation,
   KpiMonitor,
-  StoreLocation,
+  CustomerLocation,
   OrgNode,
   ItemPerformance,
 } from '../models/types'
-import { lineMarginPct, lineBreachesMap } from '../models/types'
+import { lineMarginPct, lineBreachesFloor } from '../models/types'
 
 // ═══════════════════════════════════════════════════════════════════════
-// 0 · Store estate
+// 0 · Retail customers
 // ═══════════════════════════════════════════════════════════════════════
 
-export const STORES: StoreLocation[] = [
-  { code: 'ST-PCB', name: 'Panama City Beach, FL', state: 'FL', region: 'RGN-STD' },
-  { code: 'ST-DEST', name: 'Destin, FL', state: 'FL', region: 'RGN-STD' },
-  { code: 'ST-FWB', name: 'Fort Walton Beach, FL', state: 'FL', region: 'RGN-STD' },
-  { code: 'ST-PNS', name: 'Pensacola Beach, FL', state: 'FL', region: 'RGN-STD' },
-  { code: 'ST-NAV', name: 'Navarre Beach, FL', state: 'FL', region: 'RGN-STD' },
-  { code: 'ST-PEN', name: 'Pensacola, FL', state: 'FL', region: 'RGN-HIGH' },
-  { code: 'ST-GSH', name: 'Gulf Shores, AL', state: 'AL', region: 'RGN-HIGH' },
-  { code: 'ST-CCB', name: 'Cocoa Beach, FL', state: 'FL', region: 'RGN-OUT' },
-  { code: 'ST-SOB', name: 'South Beach, FL', state: 'FL', region: 'RGN-SOB' },
+export const CUSTOMERS: CustomerLocation[] = [
+  { code: 'C10001', name: 'Great Lakes Grocers', city: 'Grand Rapids', state: 'MI', segment: 'SEG-GRO' },
+  { code: 'C10002', name: 'Northwind Foods', city: 'Columbus', state: 'OH', segment: 'SEG-GRO' },
+  { code: 'C10003', name: 'Harborline Markets', city: 'Cleveland', state: 'OH', segment: 'SEG-GRO' },
+  { code: 'C10006', name: 'Riverbend Supermarkets', city: 'Pittsburgh', state: 'PA', segment: 'SEG-GRO' },
+  { code: 'C10005', name: 'Copper Creek Grocery', city: 'Indianapolis', state: 'IN', segment: 'SEG-GRO' },
+  { code: 'C10007', name: 'Summit Club Stores', city: 'Chicago', state: 'IL', segment: 'SEG-CLUB' },
+  { code: 'C10008', name: 'ValuePoint Mass Retail', city: 'Minneapolis', state: 'MN', segment: 'SEG-CLUB' },
+  { code: 'C10009', name: 'Lakeside Natural Foods', city: 'Ann Arbor', state: 'MI', segment: 'SEG-NAT' },
+  { code: 'C10010', name: 'Green Cart Co-op', city: 'Detroit', state: 'MI', segment: 'SEG-NAT' },
+  { code: 'C10026', name: 'Pantry Prime Meal Kits', city: 'Indianapolis', state: 'IN', segment: 'SEG-ECOM' },
+  { code: 'C10027', name: 'DoorStep Grocer', city: 'Detroit', state: 'MI', segment: 'SEG-ECOM' },
 ]
 
-/** The ecommerce channel behaves as a location for pricing and sell-through. */
-export const ECOM_CODE = 'ECOM'
+/** Every retail ship-to the Price Updates page can scope to. */
+export const LOCATIONS: { code: string; name: string; region: string }[] = CUSTOMERS.map((c) => ({
+  code: c.code,
+  name: c.name,
+  region: c.segment,
+}))
 
-/** Every sellable location: the store estate plus the site. */
-export const LOCATIONS: { code: string; name: string; region: string }[] = [
-  ...STORES.map((s) => ({ code: s.code, name: s.name, region: s.region })),
-  { code: ECOM_CODE, name: 'bluestemfresh.com', region: 'RGN-ECOM' },
+const SEGMENTS: { code: string; name: string }[] = [
+  { code: 'SEG-GRO', name: 'Grocery' },
+  { code: 'SEG-CLUB', name: 'Club & Mass' },
+  { code: 'SEG-NAT', name: 'Natural' },
+  { code: 'SEG-ECOM', name: 'E-commerce' },
 ]
 
 /**
- * Organisation hierarchy. Price updates roll out against a node here — pick
- * "Retail Standard" and the change applies to the five stores under it.
+ * Customer hierarchy. Price updates roll out against a node here — pick
+ * "Grocery" and the change applies to the five grocery chains under it.
  */
 export const ORG_HIERARCHY: OrgNode = {
   code: 'ALL',
-  name: 'All locations',
-  children: [
-    {
-      code: 'RGN-STD',
-      name: 'Retail Standard',
-      children: STORES.filter((s) => s.region === 'RGN-STD').map((s) => ({ code: s.code, name: s.name })),
-    },
-    {
-      code: 'RGN-HIGH',
-      name: 'High Stores',
-      children: STORES.filter((s) => s.region === 'RGN-HIGH').map((s) => ({ code: s.code, name: s.name })),
-    },
-    {
-      code: 'RGN-OUT',
-      name: 'Outlets',
-      children: STORES.filter((s) => s.region === 'RGN-OUT').map((s) => ({ code: s.code, name: s.name })),
-    },
-    {
-      code: 'RGN-SOB',
-      name: 'South Beach',
-      children: STORES.filter((s) => s.region === 'RGN-SOB').map((s) => ({ code: s.code, name: s.name })),
-    },
-    { code: 'RGN-ECOM', name: 'Ecommerce', children: [{ code: ECOM_CODE, name: 'bluestemfresh.com' }] },
-  ],
+  name: 'All retail customers',
+  children: SEGMENTS.map((s) => ({
+    code: s.code,
+    name: s.name,
+    children: CUSTOMERS.filter((c) => c.segment === s.code).map((c) => ({ code: c.code, name: c.name })),
+  })),
 }
 
-const ALL_STORE_CODES = STORES.map((s) => s.code)
-const GULF_COAST = ALL_STORE_CODES.filter((c) => c !== 'ST-CCB' && c !== 'ST-SOB')
-const RETAIL_STANDARD = STORES.filter((s) => s.region === 'RGN-STD').map((s) => s.code)
+const inSegment = (seg: string) => CUSTOMERS.filter((c) => c.segment === seg).map((c) => c.code)
+const GROCERY = inSegment('SEG-GRO')
+const NATURAL = inSegment('SEG-NAT')
+const ECOMMERCE = inSegment('SEG-ECOM')
 
-/** Vendor programs the branded assortment is bought under. */
-export const VENDOR_PROGRAMS = [
-  { account: 'V-2041', brand: 'Quiksilver', program: 'Core Surf Program', coopPct: 12 },
-  { account: 'V-2044', brand: 'Roxy', program: 'Womens Swim Program', coopPct: 10 },
-  { account: 'V-2052', brand: 'Volcom', program: 'Womens Swim Program', coopPct: 0 },
-  { account: 'V-2068', brand: "O'Neill", program: 'Watersports Program', coopPct: 8 },
-  { account: 'V-2075', brand: 'Rip Curl', program: 'Core Surf Program', coopPct: 0 },
-  { account: 'V-2090', brand: 'Vans', program: 'Footwear Program', coopPct: 0 },
-  { account: 'V-2103', brand: 'Fox Racing', program: 'Headwear Program', coopPct: 5 },
+/** Foodservice and processor contracts the foodservice book is priced under. */
+export const FOODSERVICE_CONTRACTS = [
+  { account: 'C10011', customer: 'Midwest Foodservice Supply', contract: 'FY26 Fresh-Cut Supply Agreement' },
+  { account: 'C10012', customer: 'Keystone Foodservice', contract: 'Fall Apple Program' },
+  { account: 'C10014', customer: 'North Shore Provisions', contract: 'Winter Squash Program' },
+  { account: 'C10016', customer: 'Hudson Produce Terminal', contract: 'Terminal Market Agreement' },
+  { account: 'C10021', customer: 'Fresh Bowl Kitchens', contract: 'Restaurant Chain Agreement' },
+  { account: 'C10037', customer: 'Cedar Point Hospitality', contract: 'Season Hospitality Agreement' },
+  { account: 'C10038', customer: 'Windy City Salad Works', contract: 'Processor Supply Contract' },
 ] as const
 
 // ═══════════════════════════════════════════════════════════════════════
-// 1 · Price overrides (POS audit trail)
+// 1 · Price overrides (sales-order line audit trail)
 // ═══════════════════════════════════════════════════════════════════════
-// Register-level price overrides. Branded items carry the vendor MAP floor so
-// the audit can separate "thin margin" from "we broke the vendor agreement" —
-// several branded overrides sit thin but exactly at the floor, which is the
-// distinction the MAP column exists to draw.
+// Order lines where a rep typed over the system price. Packed-fresh items in
+// a customer price group carry a price floor, so the audit can separate "thin
+// margin" from "below the floor with no promotion behind it" — two overrides
+// sit thin but exactly at the floor, which is the distinction the floor
+// column exists to draw.
+
+const EMAIL = (name: string) => `${name.toLowerCase().replace(' ', '.')}@bluestemfresh.com`
 
 export const PRICE_OVERRIDES: PriceOverride[] = [
   {
-    id: 'OVR-001', orderNumber: 'SO-241882', orderDate: iso(-2),
-    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
-    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
-    unitCost: 25.0, originalPrice: 49.99, overridePrice: 29.99, mapFloor: 44.99,
-    reasonCode: 'Price Match', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
+    id: 'OVR-001', orderNumber: 'SO-50812', orderDate: iso(-2), cases: 336,
+    channel: 'Grocery', customer: 'Northwind Foods',
+    itemName: 'Gala Apples 3 lb pouch', itemNumber: 'PK-APL-GA-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    unitCost: 13.4, originalPrice: 18.75, overridePrice: 15.5, floorPrice: 16.9,
+    reasonCode: 'Promo price overlap', overriddenBy: 'Tom Kowalski', overriddenByEmail: EMAIL('Tom Kowalski'),
   },
   {
-    id: 'OVR-002', orderNumber: 'SO-241790', orderDate: iso(-4),
-    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
-    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
-    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
-    unitCost: 12.75, originalPrice: 39.99, overridePrice: 27.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
+    id: 'OVR-002', orderNumber: 'SO-50797', orderDate: iso(-3), cases: 168,
+    channel: 'Foodservice Contract', customer: 'Windy City Salad Works',
+    itemName: 'Zucchini 20 lb carton', itemNumber: 'PK-ZUC-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '20 lb carton',
+    unitCost: 13.5, originalPrice: 19.0, overridePrice: 17.5, floorPrice: 17.1,
+    reasonCode: 'Volume deal', overriddenBy: 'Jamal Greene', overriddenByEmail: EMAIL('Jamal Greene'),
   },
   {
-    id: 'OVR-003', orderNumber: 'SO-241655', orderDate: iso(-6),
-    channel: 'Store', storeOrSite: 'Destin, FL',
-    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
-    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
-    unitCost: 32.0, originalPrice: 59.99, overridePrice: 54.99, mapFloor: 54.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
+    id: 'OVR-003', orderNumber: 'SO-50771', orderDate: iso(-5), cases: 480,
+    channel: 'Club & Mass', customer: 'Summit Club Stores',
+    itemName: 'Honeycrisp Apples 3 lb pouch', itemNumber: 'PK-APL-HC-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    unitCost: 15.8, originalPrice: 22.5, overridePrice: 20.25, floorPrice: 20.25,
+    reasonCode: 'Competitive match', overriddenBy: 'Kate Sullivan', overriddenByEmail: EMAIL('Kate Sullivan'),
   },
   {
-    id: 'OVR-004', orderNumber: 'SO-241503', orderDate: iso(-9),
-    channel: 'Store', storeOrSite: 'Gulf Shores, AL',
-    styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
-    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
-    unitCost: 8.2, originalPrice: 29.99, overridePrice: 19.99,
-    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
+    id: 'OVR-004', orderNumber: 'SO-50744', orderDate: iso(-7), cases: 120,
+    channel: 'Grocery', customer: 'Great Lakes Grocers',
+    itemName: 'Garden Salad Kit 10 oz', itemNumber: 'FC-SAL-GARDEN',
+    category: 'Salads', productLine: 'Fresh-cut', pack: '8 × 10 oz',
+    unitCost: 17.5, originalPrice: 29.6, overridePrice: 25.9,
+    reasonCode: 'Quality / short-dated', overriddenBy: 'Jamal Greene', overriddenByEmail: EMAIL('Jamal Greene'),
   },
   {
-    id: 'OVR-005', orderNumber: 'SO-241344', orderDate: iso(-12),
-    channel: 'Store', storeOrSite: 'South Beach, FL',
-    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
-    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
-    unitCost: 15.0, originalPrice: 29.99, overridePrice: 17.99, mapFloor: 26.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
+    id: 'OVR-005', orderNumber: 'SO-50718', orderDate: iso(-9), cases: 240,
+    channel: 'Foodservice Contract', customer: 'Keystone Foodservice',
+    itemName: 'Honeycrisp Apples 88ct tray', itemNumber: 'PK-APL-HC-TRAY',
+    category: 'Apples', productLine: 'Packed fresh', pack: '88 ct tray',
+    unitCost: 29.3, originalPrice: 42.0, overridePrice: 34.5, floorPrice: 37.8,
+    reasonCode: 'Contract price not updated', overriddenBy: 'Tom Kowalski', overriddenByEmail: EMAIL('Tom Kowalski'),
   },
   {
-    id: 'OVR-006', orderNumber: 'SO-241201', orderDate: iso(-15),
-    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
-    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
-    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
-    unitCost: 4.2, originalPrice: 16.99, overridePrice: 10.0,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
+    id: 'OVR-006', orderNumber: 'SO-50690', orderDate: iso(-11), cases: 96,
+    channel: 'E-commerce', customer: 'Pantry Prime Meal Kits',
+    itemName: 'Zucchini Noodles 10 oz', itemNumber: 'FC-VEG-ZOODLE',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '8 × 10 oz',
+    unitCost: 14.7, originalPrice: 26.4, overridePrice: 22.0,
+    reasonCode: 'Volume deal', overriddenBy: 'Kate Sullivan', overriddenByEmail: EMAIL('Kate Sullivan'),
   },
   {
-    id: 'OVR-007', orderNumber: 'SO-241077', orderDate: iso(-18),
-    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
-    styleName: 'Volcom Pucker Up Cheekini Bottom', itemNumber: 'VL-3390',
-    category: 'Swimwear', productLine: 'Branded', colorSize: 'Black / S',
-    unitCost: 27.5, originalPrice: 55.0, overridePrice: 38.5, mapFloor: 49.5,
-    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
+    id: 'OVR-007', orderNumber: 'SO-50655', orderDate: iso(-13), cases: 168,
+    channel: 'Foodservice Contract', customer: 'Hudson Produce Terminal',
+    itemName: 'Blueberries 18 oz clamshell', itemNumber: 'PK-BLU-18OZ',
+    category: 'Berries', productLine: 'Packed fresh', pack: '8 × 18 oz',
+    unitCost: 19.4, originalPrice: 27.2, overridePrice: 23.5, floorPrice: 24.5,
+    reasonCode: 'Quality / short-dated', overriddenBy: 'Elena Petrov', overriddenByEmail: EMAIL('Elena Petrov'),
   },
   {
-    id: 'OVR-008', orderNumber: 'SO-240918', orderDate: iso(-22),
-    channel: 'Store', storeOrSite: 'Pensacola, FL',
-    styleName: "Logo Trucker Cap", itemNumber: 'AI-5540',
-    category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
-    unitCost: 4.75, originalPrice: 19.99, overridePrice: 12.99,
-    reasonCode: 'Display Sample', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@bluestemfresh.com',
+    id: 'OVR-008', orderNumber: 'SO-50631', orderDate: iso(-16), cases: 60,
+    channel: 'Natural', customer: 'Lakeside Natural Foods',
+    itemName: 'Tri-Color Peppers 3-pack', itemNumber: 'PK-PEP-3PK',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '12 × 3 ct',
+    unitCost: 19.6, originalPrice: 30.0, overridePrice: 27.0,
+    reasonCode: 'Competitive match', overriddenBy: 'Jamal Greene', overriddenByEmail: EMAIL('Jamal Greene'),
   },
   {
-    id: 'OVR-009', orderNumber: 'SO-240766', orderDate: iso(-26),
-    channel: 'Store', storeOrSite: 'Cocoa Beach, FL',
-    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
-    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
-    unitCost: 20.0, originalPrice: 39.99, overridePrice: 25.99, mapFloor: 35.99,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
+    id: 'OVR-009', orderNumber: 'SO-50602', orderDate: iso(-19), cases: 84,
+    channel: 'Grocery', customer: 'Copper Creek Grocery',
+    itemName: 'Green Bell Peppers 1-1/9 bu', itemNumber: 'PK-PEP-GRN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '1-1/9 bu',
+    unitCost: 17.0, originalPrice: 24.0, overridePrice: 21.25, floorPrice: 21.6,
+    reasonCode: 'Promo price overlap', overriddenBy: 'Victor Huang', overriddenByEmail: EMAIL('Victor Huang'),
   },
   {
-    id: 'OVR-010', orderNumber: 'SO-240612', orderDate: iso(-31),
-    channel: 'Store', storeOrSite: 'South Beach, FL',
-    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
-    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
-    unitCost: 13.4, originalPrice: 44.99, overridePrice: 24.99,
-    reasonCode: 'Damaged / Sun-Faded', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
+    id: 'OVR-010', orderNumber: 'SO-50577', orderDate: iso(-23), cases: 140,
+    channel: 'Club & Mass', customer: 'ValuePoint Mass Retail',
+    itemName: 'Veggie Tray w/ dip 24 oz', itemNumber: 'FC-VEG-TRAY',
+    category: 'Fruit Cups & Trays', productLine: 'Fresh-cut', pack: '4 × 24 oz',
+    unitCost: 21.7, originalPrice: 36.0, overridePrice: 31.5,
+    reasonCode: 'Volume deal', overriddenBy: 'Elena Petrov', overriddenByEmail: EMAIL('Elena Petrov'),
   },
   {
-    id: 'OVR-011', orderNumber: 'SO-240455', orderDate: iso(-36),
-    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
-    styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
-    category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
-    unitCost: 8.9, originalPrice: 29.99, overridePrice: 19.99,
-    reasonCode: 'Price Match', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
+    id: 'OVR-011', orderNumber: 'SO-50549', orderDate: iso(-27), cases: 72,
+    channel: 'Foodservice Contract', customer: 'Cedar Point Hospitality',
+    itemName: 'Stir-Fry Vegetable Blend 12 oz', itemNumber: 'FC-VEG-STIR-12OZ',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '8 × 12 oz',
+    unitCost: 17.5, originalPrice: 28.8, overridePrice: 23.5,
+    reasonCode: 'Rep discretion', overriddenBy: 'Tom Kowalski', overriddenByEmail: EMAIL('Tom Kowalski'),
   },
   {
-    id: 'OVR-012', orderNumber: 'SO-240298', orderDate: iso(-41),
-    channel: 'Store', storeOrSite: 'Navarre Beach, FL',
-    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
-    unitCost: 27.5, originalPrice: 54.99, overridePrice: 34.99, mapFloor: 49.49,
-    reasonCode: 'Manager Discretion', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
+    id: 'OVR-012', orderNumber: 'SO-50511', orderDate: iso(-33), cases: 180,
+    channel: 'Grocery', customer: 'Riverbend Supermarkets',
+    itemName: 'Butternut Squash 35 lb carton', itemNumber: 'PK-SQB-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '35 lb carton',
+    unitCost: 14.2, originalPrice: 21.0, overridePrice: 19.0, floorPrice: 18.9,
+    reasonCode: 'Competitive match', overriddenBy: 'Tom Kowalski', overriddenByEmail: EMAIL('Tom Kowalski'),
   },
   {
-    id: 'OVR-013', orderNumber: 'SO-240134', orderDate: iso(-48),
-    channel: 'Store', storeOrSite: 'Fort Walton Beach, FL',
-    styleName: 'Sea Turtle Beach Towel 30x60', itemNumber: 'AI-9020',
-    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Multi / 30x60',
-    unitCost: 6.4, originalPrice: 21.99, overridePrice: 12.99,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Tamsin Okoro', overriddenByEmail: 'tamsin.okoro@bluestemfresh.com',
+    id: 'OVR-013', orderNumber: 'SO-50480', orderDate: iso(-38), cases: 48,
+    channel: 'E-commerce', customer: 'DoorStep Grocer',
+    itemName: 'Fruit Cup (apple/blueberry) 6 oz', itemNumber: 'FC-FRT-CUP-6OZ',
+    category: 'Fruit Cups & Trays', productLine: 'Fresh-cut', pack: '12 × 6 oz',
+    unitCost: 19.5, originalPrice: 32.4, overridePrice: 27.5,
+    reasonCode: 'Rep discretion', overriddenBy: 'Victor Huang', overriddenByEmail: EMAIL('Victor Huang'),
   },
   {
-    id: 'OVR-014', orderNumber: 'SO-239977', orderDate: iso(-55),
-    channel: 'Store', storeOrSite: 'Panama City Beach, FL',
-    styleName: 'Fox Racing Legacy Moth Snapback', itemNumber: 'FX-6612',
-    category: 'Headwear', productLine: 'Branded', colorSize: 'Black / OS',
-    unitCost: 14.0, originalPrice: 27.99, overridePrice: 24.99, mapFloor: 24.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Bryce Callender', overriddenByEmail: 'bryce.callender@bluestemfresh.com',
+    id: 'OVR-014', orderNumber: 'SO-50447', orderDate: iso(-44), cases: 200,
+    channel: 'Foodservice Contract', customer: 'Midwest Foodservice Supply',
+    itemName: 'Diced Apples 5 lb foodservice', itemNumber: 'FC-APL-DICE-5LB',
+    category: 'Apples', productLine: 'Fresh-cut', pack: '4 × 5 lb',
+    unitCost: 22.9, originalPrice: 37.0, overridePrice: 33.0,
+    reasonCode: 'Volume deal', overriddenBy: 'Jamal Greene', overriddenByEmail: EMAIL('Jamal Greene'),
   },
   {
-    id: 'OVR-015', orderNumber: 'SO-239741', orderDate: iso(-63),
-    channel: 'Ecommerce', storeOrSite: 'bluestemfresh.com',
-    styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
-    category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
-    unitCost: 6.1, originalPrice: 24.99, overridePrice: 16.99,
-    reasonCode: 'Event Promotion', overriddenBy: 'Marisol Reyes', overriddenByEmail: 'marisol.reyes@bluestemfresh.com',
+    id: 'OVR-015', orderNumber: 'SO-50435', orderDate: iso(-52), cases: 120,
+    channel: 'Grocery', customer: 'Northwind Foods',
+    itemName: 'Asparagus 1 lb bunch', itemNumber: 'PK-ASP-1LB',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '11 × 1 lb',
+    unitCost: 22.8, originalPrice: 33.0, overridePrice: 29.0, floorPrice: 29.7,
+    reasonCode: 'Contract price not updated', overriddenBy: 'Tom Kowalski', overriddenByEmail: EMAIL('Tom Kowalski'),
   },
   {
-    id: 'OVR-016', orderNumber: 'SO-239502', orderDate: iso(-72),
-    channel: 'Store', storeOrSite: 'Destin, FL',
-    styleName: 'Quiksilver Original Boardshort Tee', itemNumber: 'QS-4090',
-    category: 'Tees & Tanks', productLine: 'Branded', colorSize: 'White / M',
-    unitCost: 12.5, originalPrice: 24.99, overridePrice: 22.49, mapFloor: 22.49,
-    reasonCode: 'Price Match', overriddenBy: 'Devon Trask', overriddenByEmail: 'devon.trask@bluestemfresh.com',
+    id: 'OVR-016', orderNumber: 'SO-50388', orderDate: iso(-61), cases: 96,
+    channel: 'Grocery', customer: 'Harborline Markets',
+    itemName: 'Slicer Cucumbers 24 ct', itemNumber: 'PK-CUC-SLC',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '24 ct',
+    unitCost: 11.9, originalPrice: 16.8, overridePrice: 16.1,
+    reasonCode: 'Quality / short-dated', overriddenBy: 'Victor Huang', overriddenByEmail: EMAIL('Victor Huang'),
   },
   {
-    id: 'OVR-017', orderNumber: 'SO-239188', orderDate: iso(-86),
-    channel: 'Store', storeOrSite: 'Gulf Shores, AL',
-    styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
-    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
-    unitCost: 1.85, originalPrice: 9.99, overridePrice: 5.0,
-    reasonCode: 'Group / Tour Rate', overriddenBy: 'Kayla Nguyen', overriddenByEmail: 'kayla.nguyen@bluestemfresh.com',
+    id: 'OVR-017', orderNumber: 'SO-50342', orderDate: iso(-74), cases: 288,
+    channel: 'Club & Mass', customer: 'Summit Club Stores',
+    itemName: 'Mini Cucumbers 1 lb bag', itemNumber: 'PK-CUC-MINI',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '12 × 1 lb',
+    unitCost: 13.4, originalPrice: 19.2, overridePrice: 17.28, floorPrice: 17.28,
+    reasonCode: 'Volume deal', overriddenBy: 'Kate Sullivan', overriddenByEmail: EMAIL('Kate Sullivan'),
   },
   {
-    id: 'OVR-018', orderNumber: 'SO-238904', orderDate: iso(-104),
-    channel: 'Store', storeOrSite: 'Pensacola, FL',
-    styleName: 'Gulf Shores, AL Sunset Tank', itemNumber: 'AI-6208',
-    category: 'Souvenirs', productLine: 'Own label', colorSize: 'Sand / M',
-    unitCost: 4.6, originalPrice: 18.99, overridePrice: 11.99,
-    reasonCode: 'Display Sample', overriddenBy: 'Hollis Barnett', overriddenByEmail: 'hollis.barnett@bluestemfresh.com',
+    id: 'OVR-018', orderNumber: 'SO-50296', orderDate: iso(-95), cases: 160,
+    channel: 'Foodservice Contract', customer: 'Hudson Produce Terminal',
+    itemName: 'Sliced Cucumbers 5 lb foodservice', itemNumber: 'FC-CUC-SLC-5LB',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '4 × 5 lb',
+    unitCost: 15.0, originalPrice: 24.0, overridePrice: 21.5,
+    reasonCode: 'Rep discretion', overriddenBy: 'Elena Petrov', overriddenByEmail: EMAIL('Elena Petrov'),
   },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
 // 2 · Pricing setup (margin threshold test)
 // ═══════════════════════════════════════════════════════════════════════
-// 20 active price records. At the 45% default target, 6 fail — 3 on the
-// retail side and 3 on the vendor side. Three of those also price below a
-// vendor MAP floor with no active waiver, which is a compliance issue rather
-// than a margin one.
+// 20 active price records. At the 25% default floor, 6 fail — 3 retail and 3
+// foodservice, every one of them packed fresh. Three also price below their
+// floor with no active trade promotion, which is a price leak rather than a
+// margin decision.
 
 export const PRICING_SETUP: PricingSetupLine[] = [
-  // ── Retail · bluestemfresh.com + the store estate ──
+  // ── Retail · grocery, club & mass, natural, e-commerce ──
   {
-    id: 'PRC-RTL-01', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
-    storeCodes: [ECOM_CODE],
-    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
-    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
-    quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 12.75,
-    validFrom: iso(-3), validTo: iso(120),
+    id: 'PRC-RTL-01', mode: 'Retail', channel: 'Grocery', channelDetail: 'Grocery price group',
+    customerCodes: GROCERY,
+    itemName: 'Honeycrisp Apples 3 lb pouch', itemNumber: 'PK-APL-HC-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    quantity: 480, basePrice: 22.5, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 15.8, floorPrice: 20.25,
+    validFrom: iso(-38), validTo: iso(120),
   },
   {
-    id: 'PRC-RTL-02', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
-    storeCodes: [ECOM_CODE],
-    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
-    quantity: 1, basePrice: 49.99, marginComponent: 0, discountPct: 20,
+    id: 'PRC-RTL-02', mode: 'Retail', channel: 'Club & Mass', channelDetail: 'Summit Club Stores',
+    customerCodes: ['C10007'],
+    itemName: 'Honeycrisp Apples 3 lb pouch', itemNumber: 'PK-APL-HC-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    quantity: 336, basePrice: 22.5, marginComponent: 0, discountPct: 12,
     discount: {
-      name: 'End-of-Summer Surf Event', type: 'Threshold',
-      validFrom: iso(-14), validTo: iso(20),
+      name: 'Fall Apple Club Event', type: 'Threshold', promoId: 'TP-2026-112',
+      validFrom: iso(-10), validTo: iso(12),
       tiers: [
-        { label: '$0 – $74 order total', discountPct: 10 },
-        { label: '$75 – $149 order total', discountPct: 20 },
-        { label: '$150+ order total', discountPct: 25 },
+        { label: '1 – 239 cases', discountPct: 8 },
+        { label: '240 – 479 cases', discountPct: 12 },
+        { label: '480+ cases', discountPct: 15 },
       ],
     },
-    autoCharge: 0, unitCost: 25.0, mapFloor: 44.99, mapWaiverUntil: iso(20),
-    validFrom: iso(-14), validTo: iso(20),
+    autoCharge: 0, unitCost: 15.8, poolSharePct: 8, floorPrice: 20.25, promoUntil: iso(12),
+    validFrom: iso(-10), validTo: iso(12),
   },
   {
-    id: 'PRC-RTL-03', mode: 'Retail', channel: 'Store', channelDetail: 'All Gulf Coast stores',
-    storeCodes: GULF_COAST,
-    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
-    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
-    quantity: 2, basePrice: 16.99, marginComponent: 0, discountPct: 30,
+    id: 'PRC-RTL-03', mode: 'Retail', channel: 'Grocery', channelDetail: 'Grocery price group',
+    customerCodes: GROCERY,
+    itemName: 'Apple Slices 2 oz snack cup', itemNumber: 'FC-APL-SLC-2OZ',
+    category: 'Apples', productLine: 'Fresh-cut', pack: '24 × 2 oz',
+    quantity: 300, basePrice: 27.6, marginComponent: 0, discountPct: 15,
     discount: {
-      name: 'Souvenir Tee Multi-Buy', type: 'Quantity',
-      validFrom: iso(-60), validTo: iso(45),
+      name: 'Lunchbox Snack Cup Deal', type: 'Quantity', promoId: 'TP-2026-108',
+      validFrom: iso(-40), validTo: iso(25),
       tiers: [
-        { label: '1 unit', discountPct: 0 },
-        { label: '2 units', discountPct: 30 },
-        { label: '3+ units', discountPct: 40 },
+        { label: '1 – 99 cases', discountPct: 0 },
+        { label: '100 – 299 cases', discountPct: 10 },
+        { label: '300+ cases', discountPct: 15 },
       ],
     },
-    autoCharge: 0, unitCost: 4.2,
-    validFrom: iso(-60), validTo: iso(45),
+    autoCharge: 0, unitCost: 17.0,
+    validFrom: iso(-40), validTo: iso(25),
   },
   {
-    id: 'PRC-RTL-04', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
-    storeCodes: ALL_STORE_CODES,
-    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
-    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
-    quantity: 1, basePrice: 59.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 32.0, mapFloor: 54.99,
-    validFrom: iso(-210), validTo: iso(150),
+    id: 'PRC-RTL-04', mode: 'Retail', channel: 'Grocery', channelDetail: 'Grocery price group',
+    customerCodes: GROCERY,
+    itemName: 'Butternut Squash 35 lb carton', itemNumber: 'PK-SQB-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '35 lb carton',
+    quantity: 240, basePrice: 21.0, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 14.2, floorPrice: 18.9,
+    validFrom: iso(-20), validTo: iso(90),
   },
   {
-    id: 'PRC-RTL-05', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
-    storeCodes: [ECOM_CODE],
-    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
-    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
-    quantity: 1, basePrice: 44.99, marginComponent: 0, discountPct: 40,
+    id: 'PRC-RTL-05', mode: 'Retail', channel: 'E-commerce', channelDetail: 'E-commerce price group',
+    customerCodes: ECOMMERCE,
+    itemName: 'Blueberries pint clamshell', itemNumber: 'PK-BLU-PINT',
+    category: 'Berries', productLine: 'Packed fresh', pack: '12 × 1 pint',
+    quantity: 2400, basePrice: 30.0, marginComponent: 0, discountPct: 10,
     discount: {
-      name: 'End-of-Season Swim Clearance', type: 'Line',
-      validFrom: iso(-11), validTo: iso(40),
+      name: 'Late-Season Berry Feature', type: 'Line', promoId: 'TP-2026-115',
+      validFrom: iso(-12), validTo: iso(9),
     },
-    autoCharge: 0, unitCost: 13.4,
-    validFrom: iso(-11), validTo: iso(40),
+    autoCharge: 0, unitCost: 21.0, floorPrice: 27.0, promoUntil: iso(9),
+    validFrom: iso(-12), validTo: iso(9),
   },
   {
-    id: 'PRC-RTL-06', mode: 'Retail', channel: 'Store', channelDetail: 'Retail Standard stores',
-    storeCodes: RETAIL_STANDARD,
-    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
-    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
-    quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 30,
+    id: 'PRC-RTL-06', mode: 'Retail', channel: 'Grocery', channelDetail: 'Northwind Foods · Harborline Markets',
+    customerCodes: ['C10002', 'C10003'],
+    itemName: 'Gala Apples 3 lb pouch', itemNumber: 'PK-APL-GA-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    quantity: 9600, basePrice: 18.75, marginComponent: 0, discountPct: 15,
     discount: {
-      name: 'Swim Season Flush · Retail Standard', type: 'Line',
-      validFrom: iso(-8), validTo: iso(30),
+      name: 'Ohio Harvest Ad', type: 'Line', promoId: 'TP-2026-104',
+      validFrom: iso(-27), validTo: iso(-6),
     },
-    autoCharge: 0, unitCost: 15.0, vendorAllowancePct: 10, mapFloor: 26.99,
-    validFrom: iso(-8), validTo: iso(30),
+    // The ad closed six days ago and the promo price was never taken off the
+    // price group — the retail side's price-leak finding.
+    autoCharge: 0, unitCost: 13.4, floorPrice: 16.9, promoUntil: iso(-6),
+    validFrom: iso(-27), validTo: iso(60),
   },
   {
-    id: 'PRC-RTL-07', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
-    storeCodes: ALL_STORE_CODES,
-    styleName: 'Shark Tooth Necklace', itemNumber: 'AI-9105',
-    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Cord / OS',
-    quantity: 1, basePrice: 9.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 1.85,
-    validFrom: iso(-300), validTo: iso(180),
-  },
-  {
-    id: 'PRC-RTL-08', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
-    storeCodes: [ECOM_CODE],
-    styleName: 'Foam Boogie Board 41"', itemNumber: 'AI-9310',
-    category: 'Beach Accessories', productLine: 'Own label', colorSize: 'Teal / 41in',
-    quantity: 1, basePrice: 29.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 4.95, unitCost: 8.2,
-    validFrom: iso(-180), validTo: iso(180),
-  },
-  {
-    id: 'PRC-RTL-09', mode: 'Retail', channel: 'Store', channelDetail: 'Outlet stores',
-    storeCodes: ['ST-CCB'],
-    styleName: 'Paradise Dress Tunic', itemNumber: 'AI-8104',
-    category: 'Tees & Tanks', productLine: 'Own label', colorSize: 'Turquoise / M',
-    quantity: 1, basePrice: 29.99, marginComponent: -6.0, discountPct: 25,
-    discount: {
-      name: 'Outlet Everyday Price', type: 'Line',
-      validFrom: iso(-240), validTo: iso(120),
-    },
-    autoCharge: 0, unitCost: 8.9,
-    validFrom: iso(-240), validTo: iso(120),
-  },
-  {
-    id: 'PRC-RTL-10', mode: 'Retail', channel: 'Ecommerce', channelDetail: 'bluestemfresh.com',
-    storeCodes: [ECOM_CODE],
-    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
-    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
-    quantity: 1, basePrice: 39.99, marginComponent: 0, discountPct: 15,
-    discount: {
-      name: 'Watersports Site Promo', type: 'Line',
-      validFrom: iso(-6), validTo: iso(13),
-    },
-    autoCharge: 0, unitCost: 20.0, mapFloor: 35.99, mapWaiverUntil: iso(13),
-    validFrom: iso(-6), validTo: iso(13),
-  },
-  {
-    id: 'PRC-RTL-11', mode: 'Retail', channel: 'Store', channelDetail: 'All stores',
-    storeCodes: ALL_STORE_CODES,
-    styleName: "Logo Trucker Cap", itemNumber: 'AI-5540',
-    category: 'Headwear', productLine: 'Own label', colorSize: 'Navy-Gold / OS',
-    quantity: 1, basePrice: 19.99, marginComponent: 0, discountPct: 20,
-    discount: {
-      name: 'Cap & Tee Bundle', type: 'Mix and match',
-      validFrom: iso(-45), validTo: iso(35),
-    },
-    autoCharge: 0, unitCost: 4.75,
-    validFrom: iso(-45), validTo: iso(35),
-  },
-  {
-    id: 'PRC-RTL-12', mode: 'Retail', channel: 'Store', channelDetail: 'Resort & kiosk locations',
-    storeCodes: ['ST-DEST', 'ST-PNS', 'ST-GSH', 'ST-SOB'],
-    styleName: 'Gulf Shores Dolphin Dry-Fit Tee', itemNumber: 'AI-6155',
-    category: 'Dry-Fit', productLine: 'Own label', colorSize: 'Heather Blue / L',
-    quantity: 1, basePrice: 24.99, marginComponent: 3.0, discountPct: 0,
-    autoCharge: 0, unitCost: 6.1,
+    id: 'PRC-RTL-07', mode: 'Retail', channel: 'Grocery', channelDetail: 'Grocery + Natural price groups',
+    customerCodes: [...GROCERY, ...NATURAL],
+    itemName: 'Garden Salad Kit 10 oz', itemNumber: 'FC-SAL-GARDEN',
+    category: 'Salads', productLine: 'Fresh-cut', pack: '8 × 10 oz',
+    quantity: 420, basePrice: 29.6, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 17.5,
     validFrom: iso(-150), validTo: iso(120),
   },
-
-  // ── Vendor programs · brand-set MAP floors and co-op funding ──
   {
-    id: 'PRC-VEN-01', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Quiksilver · Core Surf Program',
-    vendorAccount: 'V-2041', vendorProgram: 'Core Surf Program',
-    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
-    quantity: 144, basePrice: 49.99, marginComponent: 0, discountPct: 25,
-    discount: {
-      name: 'Season-End Co-op Markdown', type: 'Threshold',
-      validFrom: iso(-14), validTo: iso(20),
-      tiers: [
-        { label: '$0 – $4,999 program value', discountPct: 15 },
-        { label: '$5,000 – $14,999 program value', discountPct: 25 },
-        { label: '$15,000+ program value', discountPct: 30 },
-      ],
-    },
-    autoCharge: 0, unitCost: 25.0, vendorAllowancePct: 12,
-    mapFloor: 44.99, mapWaiverUntil: iso(20),
-    validFrom: iso(-14), validTo: iso(20),
+    id: 'PRC-RTL-08', mode: 'Retail', channel: 'Club & Mass', channelDetail: 'ValuePoint Mass Retail',
+    customerCodes: ['C10008'],
+    itemName: 'Veggie Tray w/ dip 24 oz', itemNumber: 'FC-VEG-TRAY',
+    category: 'Fruit Cups & Trays', productLine: 'Fresh-cut', pack: '4 × 24 oz',
+    quantity: 200, basePrice: 36.0, marginComponent: 0, discountPct: 0,
+    autoCharge: 1.25, unitCost: 21.7,
+    validFrom: iso(-90), validTo: iso(150),
   },
   {
-    id: 'PRC-VEN-02', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Quiksilver · Core Surf Program',
-    vendorAccount: 'V-2041', vendorProgram: 'Core Surf Program',
-    styleName: 'Quiksilver Original Boardshort Tee', itemNumber: 'QS-4090',
-    category: 'Tees & Tanks', productLine: 'Branded', colorSize: 'White / M',
-    quantity: 288, basePrice: 24.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 12.5, mapFloor: 22.49,
+    id: 'PRC-RTL-09', mode: 'Retail', channel: 'Natural', channelDetail: 'Natural price group',
+    customerCodes: NATURAL,
+    itemName: 'Tri-Color Peppers 3-pack', itemNumber: 'PK-PEP-3PK',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '12 × 3 ct',
+    quantity: 96, basePrice: 30.0, marginComponent: -2.0, discountPct: 0,
+    autoCharge: 0, unitCost: 19.6,
+    validFrom: iso(-120), validTo: iso(90),
+  },
+  {
+    id: 'PRC-RTL-10', mode: 'Retail', channel: 'Club & Mass', channelDetail: 'Summit Club Stores',
+    customerCodes: ['C10007'],
+    itemName: 'Mini Cucumbers 1 lb bag', itemNumber: 'PK-CUC-MINI',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '12 × 1 lb',
+    quantity: 7200, basePrice: 19.2, marginComponent: 0, discountPct: 8,
+    discount: {
+      name: 'Club Pallet Program', type: 'Line', promoId: 'TP-2026-109',
+      validFrom: iso(-30), validTo: iso(30),
+    },
+    autoCharge: 0, unitCost: 13.4, floorPrice: 17.28, promoUntil: iso(30),
+    validFrom: iso(-30), validTo: iso(30),
+  },
+  {
+    id: 'PRC-RTL-11', mode: 'Retail', channel: 'Grocery', channelDetail: 'Grocery price group',
+    customerCodes: GROCERY,
+    itemName: 'Diced Butternut Squash 12 oz', itemNumber: 'FC-VEG-SQB-DICE',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '8 × 12 oz',
+    quantity: 160, basePrice: 24.0, marginComponent: 0, discountPct: 15,
+    discount: {
+      name: 'Fall Soup Starter Bundle', type: 'Mix and match', promoId: 'TP-2026-116',
+      validFrom: iso(-5), validTo: iso(40),
+    },
+    autoCharge: 0, unitCost: 14.6,
+    validFrom: iso(-5), validTo: iso(40),
+  },
+  {
+    id: 'PRC-RTL-12', mode: 'Retail', channel: 'E-commerce', channelDetail: 'E-commerce price group',
+    customerCodes: ECOMMERCE,
+    itemName: 'Fruit Cup (apple/blueberry) 6 oz', itemNumber: 'FC-FRT-CUP-6OZ',
+    category: 'Fruit Cups & Trays', productLine: 'Fresh-cut', pack: '12 × 6 oz',
+    quantity: 120, basePrice: 32.4, marginComponent: 1.5, discountPct: 0,
+    autoCharge: 0, unitCost: 19.5,
+    validFrom: iso(-200), validTo: iso(160),
+  },
+
+  // ── Foodservice · distributor, restaurant-chain and processor contracts ──
+  {
+    id: 'PRC-FS-01', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Midwest Foodservice Supply',
+    customerAccount: 'C10011', contract: 'FY26 Fresh-Cut Supply Agreement',
+    itemName: 'Diced Apples 5 lb foodservice', itemNumber: 'FC-APL-DICE-5LB',
+    category: 'Apples', productLine: 'Fresh-cut', pack: '4 × 5 lb',
+    quantity: 480, basePrice: 37.0, marginComponent: 0, discountPct: 10,
+    discount: {
+      name: 'Contract Volume Tier', type: 'Threshold', promoId: 'TP-2026-110',
+      validFrom: iso(-45), validTo: iso(20),
+      tiers: [
+        { label: '$0 – $9,999 per order', discountPct: 5 },
+        { label: '$10,000 – $24,999 per order', discountPct: 10 },
+        { label: '$25,000+ per order', discountPct: 12 },
+      ],
+    },
+    autoCharge: 0, unitCost: 22.9, floorPrice: 34.0, promoUntil: iso(20),
+    validFrom: iso(-45), validTo: iso(20),
+  },
+  {
+    id: 'PRC-FS-02', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Fresh Bowl Kitchens',
+    customerAccount: 'C10021', contract: 'Restaurant Chain Agreement',
+    itemName: 'Chopped Romaine 2 lb foodservice', itemNumber: 'FC-SAL-ROM-CHOP',
+    category: 'Salads', productLine: 'Fresh-cut', pack: '6 × 2 lb',
+    quantity: 600, basePrice: 26.4, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: 16.5, floorPrice: 24.0,
+    validFrom: iso(-180), validTo: iso(185),
+  },
+  {
+    id: 'PRC-FS-03', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Keystone Foodservice',
+    customerAccount: 'C10012', contract: 'Fall Apple Program',
+    itemName: 'Honeycrisp Apples 88ct tray', itemNumber: 'PK-APL-HC-TRAY',
+    category: 'Apples', productLine: 'Packed fresh', pack: '88 ct tray',
+    quantity: 4800, basePrice: 42.0, marginComponent: 0, discountPct: 15,
+    discount: {
+      name: 'Harvest Kickoff Allowance', type: 'Line', promoId: 'TP-2026-118',
+      validFrom: iso(-35), validTo: iso(-9),
+    },
+    // The trade promotion closed nine days ago and the allowance stayed on the
+    // contract line — this is the demo's headline price-leak finding.
+    autoCharge: 0, unitCost: 29.3, poolSharePct: 8, floorPrice: 37.8, promoUntil: iso(-9),
+    validFrom: iso(-35), validTo: iso(55),
+  },
+  {
+    id: 'PRC-FS-04', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Windy City Salad Works',
+    customerAccount: 'C10038', contract: 'Processor Supply Contract',
+    itemName: 'Zucchini 20 lb carton', itemNumber: 'PK-ZUC-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '20 lb carton',
+    quantity: 5760, basePrice: 19.0, marginComponent: 0, discountPct: 8,
+    discount: {
+      name: 'Processor Volume Schedule', type: 'Quantity',
+      validFrom: iso(-150), validTo: iso(30),
+      tiers: [
+        { label: '1 – 99 cases', discountPct: 0 },
+        { label: '100 – 199 cases', discountPct: 5 },
+        { label: '200+ cases', discountPct: 8 },
+      ],
+    },
+    autoCharge: 0, unitCost: 13.5, floorPrice: 17.1,
+    validFrom: iso(-150), validTo: iso(30),
+  },
+  {
+    id: 'PRC-FS-05', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Windy City Salad Works',
+    customerAccount: 'C10038', contract: 'Processor Supply Contract',
+    itemName: 'Green Bell Peppers 1-1/9 bu', itemNumber: 'PK-PEP-GRN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '1-1/9 bu',
+    quantity: 5760, basePrice: 24.0, marginComponent: 0, discountPct: 8,
+    discount: {
+      name: 'Processor Volume Schedule', type: 'Quantity',
+      validFrom: iso(-150), validTo: iso(30),
+      tiers: [
+        { label: '1 – 99 cases', discountPct: 0 },
+        { label: '100 – 199 cases', discountPct: 5 },
+        { label: '200+ cases', discountPct: 8 },
+      ],
+    },
+    // Raw pepper cost moved after the contract was signed; the floor was
+    // raised but the volume schedule was never re-cut against it.
+    autoCharge: 0, unitCost: 17.0, floorPrice: 22.8,
+    validFrom: iso(-150), validTo: iso(30),
+  },
+  {
+    id: 'PRC-FS-06', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Cedar Point Hospitality',
+    customerAccount: 'C10037', contract: 'Season Hospitality Agreement',
+    itemName: 'Stir-Fry Vegetable Blend 12 oz', itemNumber: 'FC-VEG-STIR-12OZ',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '8 × 12 oz',
+    quantity: 144, basePrice: 28.8, marginComponent: 0, discountPct: 10,
+    discount: {
+      name: 'Season-Close Allowance', type: 'Line', promoId: 'TP-2026-117',
+      validFrom: iso(-8), validTo: iso(21),
+    },
+    autoCharge: 0, unitCost: 17.5,
+    validFrom: iso(-8), validTo: iso(21),
+  },
+  {
+    id: 'PRC-FS-07', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'Hudson Produce Terminal',
+    customerAccount: 'C10016', contract: 'Terminal Market Agreement',
+    itemName: 'Sliced Cucumbers 5 lb foodservice', itemNumber: 'FC-CUC-SLC-5LB',
+    category: 'Vegetable Blends', productLine: 'Fresh-cut', pack: '4 × 5 lb',
+    quantity: 200, basePrice: 24.0, marginComponent: 0, discountPct: 0,
+    autoCharge: 0.95, unitCost: 15.0,
     validFrom: iso(-240), validTo: iso(125),
   },
   {
-    id: 'PRC-VEN-03', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Roxy · Womens Swim Program',
-    vendorAccount: 'V-2044', vendorProgram: 'Womens Swim Program',
-    styleName: 'Roxy Beach Classics Tie-Side Bottom', itemNumber: 'RX-2208',
-    category: 'Swimwear', productLine: 'Branded', colorSize: 'Coral / M',
-    quantity: 216, basePrice: 29.99, marginComponent: 0, discountPct: 30,
+    id: 'PRC-FS-08', mode: 'Foodservice', channel: 'Foodservice Contract',
+    channelDetail: 'North Shore Provisions',
+    customerAccount: 'C10014', contract: 'Winter Squash Program',
+    itemName: 'Butternut Squash 35 lb carton', itemNumber: 'PK-SQB-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '35 lb carton',
+    quantity: 144, basePrice: 21.0, marginComponent: 0, discountPct: 5,
     discount: {
-      name: 'Swim Season Flush', type: 'Quantity',
-      validFrom: iso(-8), validTo: iso(30),
+      name: 'Winter Program Schedule', type: 'Quantity',
+      validFrom: iso(-20), validTo: iso(150),
       tiers: [
-        { label: '1 – 99 units', discountPct: 20 },
-        { label: '100 – 249 units', discountPct: 30 },
-        { label: '250+ units', discountPct: 35 },
+        { label: '1 – 71 cases', discountPct: 0 },
+        { label: '72 – 143 cases', discountPct: 3 },
+        { label: '144+ cases', discountPct: 5 },
       ],
     },
-    autoCharge: 0, unitCost: 15.0, vendorAllowancePct: 10, mapFloor: 26.99,
-    validFrom: iso(-8), validTo: iso(30),
-  },
-  {
-    id: 'PRC-VEN-04', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Volcom · Womens Swim Program',
-    vendorAccount: 'V-2052', vendorProgram: 'Womens Swim Program',
-    styleName: 'Volcom Pucker Up Cheekini Bottom', itemNumber: 'VL-3390',
-    category: 'Swimwear', productLine: 'Branded', colorSize: 'Black / S',
-    quantity: 96, basePrice: 55.0, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 27.5, mapFloor: 49.5,
-    validFrom: iso(-210), validTo: iso(155),
-  },
-  {
-    id: 'PRC-VEN-05', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: "O'Neill · Watersports Program",
-    vendorAccount: 'V-2068', vendorProgram: 'Watersports Program',
-    styleName: "O'Neill Reactor 2mm Rash Guard", itemNumber: 'ON-1174',
-    category: 'Dry-Fit', productLine: 'Branded', colorSize: 'Graphite / M',
-    quantity: 120, basePrice: 39.99, marginComponent: 0, discountPct: 15,
-    discount: {
-      name: 'Watersports Co-op Window', type: 'Line',
-      validFrom: iso(-6), validTo: iso(13),
-    },
-    autoCharge: 0, unitCost: 20.0, vendorAllowancePct: 8,
-    mapFloor: 35.99, mapWaiverUntil: iso(13),
-    validFrom: iso(-6), validTo: iso(13),
-  },
-  {
-    id: 'PRC-VEN-06', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Rip Curl · Core Surf Program',
-    vendorAccount: 'V-2075', vendorProgram: 'Core Surf Program',
-    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
-    quantity: 84, basePrice: 54.99, marginComponent: 0, discountPct: 20,
-    discount: {
-      name: 'Surf Carryover Markdown', type: 'Line',
-      validFrom: iso(-30), validTo: iso(25),
-    },
-    // The vendor's approved markdown window closed nine days ago and the
-    // price never went back up — this is the demo's compliance finding.
-    autoCharge: 0, unitCost: 27.5, mapFloor: 49.49, mapWaiverUntil: iso(-9),
-    validFrom: iso(-30), validTo: iso(25),
-  },
-  {
-    id: 'PRC-VEN-07', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Vans · Footwear Program',
-    vendorAccount: 'V-2090', vendorProgram: 'Footwear Program',
-    styleName: 'Vans Classic Slip-On', itemNumber: 'VN-8801',
-    category: 'Footwear', productLine: 'Branded', colorSize: 'Black-White / 9',
-    quantity: 60, basePrice: 59.99, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 32.0, mapFloor: 54.99,
-    validFrom: iso(-210), validTo: iso(150),
-  },
-  {
-    id: 'PRC-VEN-08', mode: 'Vendor', channel: 'Vendor Program',
-    channelDetail: 'Fox Racing · Headwear Program',
-    vendorAccount: 'V-2103', vendorProgram: 'Headwear Program',
-    styleName: 'Fox Racing Legacy Moth Snapback', itemNumber: 'FX-6612',
-    category: 'Headwear', productLine: 'Branded', colorSize: 'Black / OS',
-    quantity: 144, basePrice: 27.99, marginComponent: 0, discountPct: 10,
-    discount: {
-      name: 'Headwear Program Allowance', type: 'Quantity',
-      validFrom: iso(-90), validTo: iso(60),
-      tiers: [
-        { label: '1 – 71 units', discountPct: 0 },
-        { label: '72 – 143 units', discountPct: 5 },
-        { label: '144+ units', discountPct: 10 },
-      ],
-    },
-    autoCharge: 0, unitCost: 14.0, vendorAllowancePct: 5, mapFloor: 24.99,
-    validFrom: iso(-90), validTo: iso(60),
+    autoCharge: 0, unitCost: 14.2, floorPrice: 18.9,
+    validFrom: iso(-20), validTo: iso(150),
   },
 ]
 
 // ═══════════════════════════════════════════════════════════════════════
 // 3 · Price history audit
 // ═══════════════════════════════════════════════════════════════════════
-// A price scope is whatever the price is set against: the retail list price,
-// one channel, one store, or a vendor program's MAP schedule.
+// A price scope is whatever the price is set against: Bluestem's list price,
+// a customer price group, or one customer's contract line.
 
 export const PRICE_HISTORY: PriceHistoryRecord[] = [
   {
-    productKey: 'QS-4412|Sapphire / 32|RETAIL',
-    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
-    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    productKey: 'PK-APL-HC-TRAY|88 ct tray|LIST',
+    itemName: 'Honeycrisp Apples 88ct tray', itemNumber: 'PK-APL-HC-TRAY',
+    category: 'Apples', productLine: 'Packed fresh', pack: '88 ct tray',
+    scopeId: 'LIST', scopeName: 'Bluestem list price',
     entries: [
-      { id: 'PH-1-4', price: 39.99, activeFrom: iso(-14), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Season-end co-op markdown · 20%, vendor-funded at 12%' },
-      { id: 'PH-1-3', price: 49.99, activeFrom: iso(-104), activeTo: iso(-15), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer program price' },
-      { id: 'PH-1-2', price: 47.99, activeFrom: iso(-196), activeTo: iso(-105), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Spring Break program price' },
-      { id: 'PH-1-1', price: 45.99, activeFrom: iso(-380), activeTo: iso(-197), changedBy: 'System', changeType: 'Initial', note: 'Program introduction' },
+      { id: 'PH-1-3', price: 42.0, activeFrom: iso(-38), activeTo: null, changedBy: 'Priya Nair', changeType: 'Season set', note: 'New-crop Honeycrisp price off the Hart packing line' },
+      { id: 'PH-1-2', price: 44.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Storage-crop price, CA rooms at Hart' },
+      { id: 'PH-1-1', price: 39.5, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'QS-4412|Sapphire / 32|VP-QUIK',
-    styleName: 'Quiksilver Everyday Surfwash Boardshort 19"', itemNumber: 'QS-4412',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Sapphire / 32',
-    scopeId: 'VP-QUIK', scopeName: 'Quiksilver · Core Surf Program (MAP)',
+    productKey: 'PK-APL-HC-TRAY|88 ct tray|C10012',
+    itemName: 'Honeycrisp Apples 88ct tray', itemNumber: 'PK-APL-HC-TRAY',
+    category: 'Apples', productLine: 'Packed fresh', pack: '88 ct tray',
+    scopeId: 'C10012', scopeName: 'Keystone Foodservice · Fall Apple Program',
     entries: [
-      { id: 'PH-2-3', price: 44.99, activeFrom: iso(-104), activeTo: null, changedBy: 'Vendor feed', changeType: 'MAP update', note: `Markdown waiver active to ${iso(20)} — pricing below MAP is approved` },
-      { id: 'PH-2-2', price: 42.99, activeFrom: iso(-196), activeTo: iso(-105), changedBy: 'Vendor feed', changeType: 'MAP update', note: 'Spring Break MAP schedule' },
-      { id: 'PH-2-1', price: 41.99, activeFrom: iso(-380), activeTo: iso(-197), changedBy: 'System', changeType: 'Initial', note: 'Program MAP at introduction' },
+      { id: 'PH-2-3', price: 35.7, activeFrom: iso(-35), activeTo: null, changedBy: 'Tom Kowalski', changeType: 'Trade promotion', note: `Harvest Kickoff Allowance · 15% — TP-2026-118 ended ${shortDate(iso(-9))}, price never restored to the $37.80 floor` },
+      { id: 'PH-2-2', price: 42.0, activeFrom: iso(-170), activeTo: iso(-36), changedBy: 'Tom Kowalski', changeType: 'Contract update', note: 'Contract line matched to list' },
+      { id: 'PH-2-1', price: 40.0, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Program contract signed' },
     ],
   },
   {
-    productKey: 'RC-5521|Navy / 34|VP-RIPC',
-    styleName: 'Rip Curl Icons Surflite Boardshort', itemNumber: 'RC-5521',
-    category: 'Boardshorts', productLine: 'Branded', colorSize: 'Navy / 34',
-    scopeId: 'VP-RIPC', scopeName: 'Rip Curl · Core Surf Program (MAP)',
+    productKey: 'PK-APL-GA-3LB|12 × 3 lb|LIST',
+    itemName: 'Gala Apples 3 lb pouch', itemNumber: 'PK-APL-GA-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    scopeId: 'LIST', scopeName: 'Bluestem list price',
     entries: [
-      { id: 'PH-3-3', price: 49.49, activeFrom: iso(-8), activeTo: null, changedBy: 'Vendor feed', changeType: 'MAP update', note: `Markdown waiver expired ${iso(-9)} — MAP is back in force at $49.49` },
-      { id: 'PH-3-2', price: 49.49, activeFrom: iso(-30), activeTo: iso(-9), changedBy: 'Vendor feed', changeType: 'MAP update', note: 'Carryover markdown waiver granted for 21 days' },
-      { id: 'PH-3-1', price: 49.49, activeFrom: iso(-360), activeTo: iso(-31), changedBy: 'System', changeType: 'Initial', note: 'Program MAP at introduction' },
+      { id: 'PH-3-3', price: 18.75, activeFrom: iso(-38), activeTo: null, changedBy: 'Priya Nair', changeType: 'Season set', note: 'New-crop Gala price' },
+      { id: 'PH-3-2', price: 19.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Storage-crop price' },
+      { id: 'PH-3-1', price: 17.95, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'AI-2255|Aqua / M|RETAIL',
-    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
-    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
-    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    productKey: 'PK-APL-GA-3LB|12 × 3 lb|PG-OHIO',
+    itemName: 'Gala Apples 3 lb pouch', itemNumber: 'PK-APL-GA-3LB',
+    category: 'Apples', productLine: 'Packed fresh', pack: '12 × 3 lb',
+    scopeId: 'PG-OHIO', scopeName: 'Northwind Foods · Harborline Markets',
     entries: [
-      { id: 'PH-4-3', price: 44.99, activeFrom: iso(-150), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer list price' },
-      { id: 'PH-4-2', price: 42.99, activeFrom: iso(-260), activeTo: iso(-151), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Spring Break list price' },
-      { id: 'PH-4-1', price: 39.99, activeFrom: iso(-330), activeTo: iso(-261), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-4-3', price: 15.94, activeFrom: iso(-27), activeTo: null, changedBy: 'Tom Kowalski', changeType: 'Trade promotion', note: `Ohio Harvest Ad · 15% — TP-2026-104 ended ${shortDate(iso(-6))}, promo price still live` },
+      { id: 'PH-4-2', price: 18.75, activeFrom: iso(-38), activeTo: iso(-28), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Matched to new-crop list' },
+      { id: 'PH-4-1', price: 19.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'System', changeType: 'Initial', note: 'Price group created' },
     ],
   },
   {
-    productKey: 'AI-2255|Aqua / M|ECOM',
-    styleName: 'Ladies Tropical Palm One-Piece', itemNumber: 'AI-2255',
-    category: 'Swimwear', productLine: 'Own label', colorSize: 'Aqua / M',
-    scopeId: 'ECOM', scopeName: 'bluestemfresh.com',
+    productKey: 'PK-BLU-PINT|12 × 1 pint|LIST',
+    itemName: 'Blueberries pint clamshell', itemNumber: 'PK-BLU-PINT',
+    category: 'Berries', productLine: 'Packed fresh', pack: '12 × 1 pint',
+    scopeId: 'LIST', scopeName: 'Bluestem list price',
     entries: [
-      { id: 'PH-5-4', price: 26.99, activeFrom: iso(-11), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'End-of-season swim clearance · 40% — still clears 50% margin' },
-      { id: 'PH-5-3', price: 33.74, activeFrom: iso(-40), activeTo: iso(-12), changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Wave 1 · 25%' },
-      { id: 'PH-5-2', price: 44.99, activeFrom: iso(-150), activeTo: iso(-41), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Peak Summer list, matched to retail' },
-      { id: 'PH-5-1', price: 42.99, activeFrom: iso(-330), activeTo: iso(-151), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-5-4', price: 30.0, activeFrom: iso(-45), activeTo: null, changedBy: 'Priya Nair', changeType: 'Season set', note: 'Partner-grower supply after the Michigan season closed' },
+      { id: 'PH-5-3', price: 26.0, activeFrom: iso(-100), activeTo: iso(-46), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Michigan peak — Holland DC full' },
+      { id: 'PH-5-2', price: 32.0, activeFrom: iso(-150), activeTo: iso(-101), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Early-season Michigan price' },
+      { id: 'PH-5-1', price: 31.0, activeFrom: iso(-420), activeTo: iso(-151), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'AI-6011|White / L|RETAIL',
-    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
-    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
-    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    productKey: 'PK-BLU-PINT|12 × 1 pint|PG-ECOM',
+    itemName: 'Blueberries pint clamshell', itemNumber: 'PK-BLU-PINT',
+    category: 'Berries', productLine: 'Packed fresh', pack: '12 × 1 pint',
+    scopeId: 'PG-ECOM', scopeName: 'E-commerce price group',
     entries: [
-      { id: 'PH-6-3', price: 16.99, activeFrom: iso(-190), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Season price — held through the summer' },
-      { id: 'PH-6-2', price: 15.99, activeFrom: iso(-420), activeTo: iso(-191), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Prior season price' },
-      { id: 'PH-6-1', price: 14.99, activeFrom: iso(-600), activeTo: iso(-421), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-6-3', price: 27.0, activeFrom: iso(-12), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Agent reprice', note: 'Late-Season Berry Feature · 10% — held exactly at the $27.00 floor' },
+      { id: 'PH-6-2', price: 30.0, activeFrom: iso(-45), activeTo: iso(-13), changedBy: 'Kate Sullivan', changeType: 'Season set', note: 'Matched to partner-grower list' },
+      { id: 'PH-6-1', price: 26.0, activeFrom: iso(-100), activeTo: iso(-46), changedBy: 'System', changeType: 'Initial', note: 'Price group created' },
     ],
   },
   {
-    productKey: 'AI-6011|White / L|ST-PCB',
-    styleName: 'Panama City Beach Sunset Tee', itemNumber: 'AI-6011',
-    category: 'Souvenirs', productLine: 'Own label', colorSize: 'White / L',
-    scopeId: 'ST-PCB', scopeName: 'Panama City Beach, FL store',
+    productKey: 'PK-SQB-CTN|35 lb carton|LIST',
+    itemName: 'Butternut Squash 35 lb carton', itemNumber: 'PK-SQB-CTN',
+    category: 'Vegetables', productLine: 'Packed fresh', pack: '35 lb carton',
+    scopeId: 'LIST', scopeName: 'Bluestem list price',
     entries: [
-      { id: 'PH-7-3', price: 11.89, activeFrom: iso(-60), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Agent reprice', note: 'Souvenir tee multi-buy · effective price at 2 units' },
-      { id: 'PH-7-2', price: 16.99, activeFrom: iso(-190), activeTo: iso(-61), changedBy: 'R. Deleon', changeType: 'Season set', note: 'Matched to retail list' },
-      { id: 'PH-7-1', price: 15.99, activeFrom: iso(-420), activeTo: iso(-191), changedBy: 'System', changeType: 'Initial', note: 'Home-city style, store-specific from launch' },
+      { id: 'PH-7-3', price: 21.0, activeFrom: iso(-20), activeTo: null, changedBy: 'Priya Nair', changeType: 'Season set', note: 'Michigan squash harvest — held into Thanksgiving' },
+      { id: 'PH-7-2', price: 23.5, activeFrom: iso(-230), activeTo: iso(-21), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Partner-grower winter supply' },
+      { id: 'PH-7-1', price: 21.5, activeFrom: iso(-400), activeTo: iso(-231), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'AI-7702|Navy / L|RETAIL',
-    styleName: 'Destin, FL Sun & Stripes Hoodie', itemNumber: 'AI-7702',
-    category: 'Hoodies & Fleece', productLine: 'Own label', colorSize: 'Navy / L',
-    scopeId: 'RETAIL', scopeName: 'Retail list price (all channels)',
+    productKey: 'FC-APL-SLC-2OZ|24 × 2 oz|LIST',
+    itemName: 'Apple Slices 2 oz snack cup', itemNumber: 'FC-APL-SLC-2OZ',
+    category: 'Apples', productLine: 'Fresh-cut', pack: '24 × 2 oz',
+    scopeId: 'LIST', scopeName: 'Bluestem list price',
     entries: [
-      { id: 'PH-8-3', price: 39.99, activeFrom: iso(-3), activeTo: null, changedBy: 'R. Deleon', changeType: 'Season set', note: 'Post-Labor Day price hold — fleece demand rises into snowbird season' },
-      { id: 'PH-8-2', price: 36.99, activeFrom: iso(-96), activeTo: iso(-4), changedBy: 'Pricing Agent', changeType: 'Markdown', note: 'Peak Summer promo price' },
-      { id: 'PH-8-1', price: 34.99, activeFrom: iso(-300), activeTo: iso(-97), changedBy: 'System', changeType: 'Initial', note: 'Style introduction' },
+      { id: 'PH-8-3', price: 27.6, activeFrom: iso(-40), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Cost-plus update', note: 'New-crop apple cost rolled into the fresh-cut price' },
+      { id: 'PH-8-2', price: 26.4, activeFrom: iso(-220), activeTo: iso(-41), changedBy: 'Priya Nair', changeType: 'Season set', note: 'Storage-crop cost basis' },
+      { id: 'PH-8-1', price: 25.8, activeFrom: iso(-420), activeTo: iso(-221), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
 ]
@@ -648,131 +644,128 @@ export const PRICE_HISTORY: PriceHistoryRecord[] = [
 export const RECOMMENDATIONS: Recommendation[] = [
   // ── Retail ──
   {
-    id: 'REC-RTL-1', audience: 'Retail', kind: 'Markdown timing',
-    title: 'Stage the swim clearance in three waves, own-label first',
+    id: 'REC-RTL-1', audience: 'Retail', kind: 'Promotion timing',
+    title: 'Put the fall apple features on fresh-cut, not on the pouches',
     detail:
-      'Own-label swim still clears 50% margin at a 40% cut; branded swim does not. Run the waves on own-label and hold branded at MAP until a vendor waiver is in hand.',
-    bullets: ['Week 1 · 25% — own-label only', 'Week 3 · 40% — own-label only', 'Week 5 · 55% — add branded once waivers land'],
-    impact: '+$128K margin vs. a flat 50% cut across all swim', confidence: 'High', status: 'Open',
+      'Apple slices still clear 27% margin at 15% off; a 3 lb Gala pouch at the same depth lands under 16%. Feature the fresh-cut items on price and keep the pouches at list in the ad.',
+    bullets: ['Week 1 · Apple Slices 14 oz family pack at 15% off', 'Week 2 · Snack cups on the 300-case tier', 'Pouches stay at list — feature in ad, not on price'],
+    impact: '+$84K margin vs. a flat 12% apple promotion', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-RTL-2', audience: 'Retail', kind: 'Delay markdown',
-    title: 'Hold the Destin hoodie at $39.99 through October',
+    id: 'REC-RTL-2', audience: 'Retail', kind: 'Hold price',
+    title: 'Hold butternut squash at $21.00 through Thanksgiving',
     detail:
-      'Fleece sell-through is 58% against a 52% target for this point in the season, and snowbird traffic builds from October. Marking it down now gives away a price the market is paying.',
-    impact: 'Protects ~$61K of full-price revenue', confidence: 'High', status: 'Open',
+      'Squash demand climbs into November and the carton carries a 60-day shelf life, so there is no spoilage clock forcing a price move. Cutting now gives away a price the grocery chains are paying.',
+    impact: 'Protects ~$52K of list-price revenue', confidence: 'High', status: 'Open',
   },
   {
     id: 'REC-RTL-3', audience: 'Retail', kind: 'Increase price',
-    title: 'Raise own-label souvenir tees from $16.99 to $18.99',
+    title: 'Raise the Garden Salad Kit from $29.60 to $31.20 a case',
     detail:
-      'Souvenir tees sell on impulse to visitors who are not comparison-shopping, and nearby kiosks list comparable tees at $19.99. Unit velocity has been flat across two price moves, which suggests headroom.',
-    impact: '+$214K estimated annual margin', confidence: 'High', status: 'Open',
+      'Fresh-cut salad kits ship at 41% margin and case velocity held flat through two cost-plus increases. The Caesar kit already lists at $31.20 with no volume penalty.',
+    impact: '+$118K estimated annual margin', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-RTL-4', audience: 'Retail', kind: 'Store-specific pricing',
-    title: 'Carry the $3 kiosk uplift across all resort locations',
+    id: 'REC-RTL-4', audience: 'Retail', kind: 'Customer-specific pricing',
+    title: 'Carry the e-commerce small-pack uplift to the natural channel',
     detail:
-      'Resort and kiosk locations already price own-label dry-fit $3 above the estate with no measurable conversion loss. Extend the uplift to headwear and beach accessories at the same locations.',
-    impact: '+$47K margin per season', confidence: 'Medium', status: 'Open',
+      'Pantry Prime and DoorStep already pay $1.50 a case above the price group on fresh-cut with no loss of volume. Extend the uplift to Lakeside Natural Foods and Green Cart Co-op.',
+    impact: '+$38K margin per season', confidence: 'Medium', status: 'Open',
   },
   {
     id: 'REC-RTL-5', audience: 'Retail', kind: 'Inventory-driven',
-    title: 'Boardshorts are at 14 weeks of supply going into the off-season',
-    detail: 'Gulf Coast boardshort demand falls off sharply after Labor Day. Options, in order of margin impact:',
+    title: 'Blueberry pints are at 9 days of cover on a 12-day shelf life',
+    detail: 'Partner-grower berries landed heavier than the e-commerce program is pulling. Options, in order of margin impact:',
     bullets: [
-      'Transfer to South Florida stores, where the season runs into November',
-      'Request a co-op markdown extension before cutting price',
-      'Mark down 25% only once the MAP waiver is confirmed',
+      'Divert the surplus to the Grand Rapids fresh-cut line for fruit cups (42% margin)',
+      'Offer the balance to Summit Club as a pallet deal before day 6',
+      'Price to move only as a last resort — the line already sits on its floor',
     ],
-    impact: 'Frees ~$186K of working capital', confidence: 'High', status: 'Open',
+    impact: 'Avoids ~$41K of shrink', confidence: 'High', status: 'Open',
   },
 
-  // ── Vendor programs ──
+  // ── Foodservice ──
   {
-    id: 'REC-VEN-1', audience: 'Vendor', kind: 'MAP compliance',
-    title: 'Three lines price below MAP with no active waiver',
+    id: 'REC-FS-1', audience: 'Foodservice', kind: 'Floor compliance',
+    title: 'Three lines price below floor with no active promotion',
     detail:
-      'Two Roxy tie-side records (store and program) and the Rip Curl Surflite are below their vendor MAP floors. The Rip Curl waiver expired and the price was never restored.',
-    bullets: ['Restore Rip Curl Surflite to the $49.49 floor', 'Request a Roxy waiver or pull the Retail Standard flush back to $26.99'],
-    impact: 'Clears 3 open agreement breaches', confidence: 'High', status: 'Open',
+      'The Keystone Honeycrisp tray kept its harvest-kickoff allowance nine days after TP-2026-118 closed, the Ohio Gala ad price is still live at Northwind and Harborline, and the Windy City pepper schedule was never re-cut against the new floor.',
+    bullets: ['Restore the Keystone 88ct tray to the $37.80 floor', 'End the Ohio Gala ad price or extend TP-2026-104 with approval', 'Re-cut the Windy City pepper volume schedule'],
+    impact: 'Clears 3 open price leaks', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-VEN-2', audience: 'Vendor', kind: 'Vendor terms',
-    title: 'Negotiate co-op markdown funding into the Rip Curl program',
+    id: 'REC-FS-2', audience: 'Foodservice', kind: 'Contract terms',
+    title: 'Index the Windy City processor contract to raw cost',
     detail:
-      'Quiksilver funds 12% of cost on approved markdown windows and O’Neill funds 8%. Rip Curl funds nothing, which is why the same 20% markdown earns 8 points less margin there than on comparable Quiksilver product.',
-    impact: '+$96K if Rip Curl matches Quiksilver at 12%', confidence: 'Medium', status: 'Open',
+      'Zucchini and pepper costs rose after the contract was signed and the fixed volume schedule did not move with them, which is why both lines now sit under 25%. A quarterly cost index keeps the discount and the margin.',
+    impact: '+$67K if the contract reprices quarterly to cost', confidence: 'Medium', status: 'Open',
   },
   {
-    id: 'REC-VEN-3', audience: 'Vendor', kind: 'Margin protection',
-    title: 'Rip Curl Surflite at 20% off earns 37.5% — under the vendor floor',
+    id: 'REC-FS-3', audience: 'Foodservice', kind: 'Margin protection',
+    title: 'Keystone Honeycrisp tray earns 24.5% at 15% off — under the floor even pooled',
     detail:
-      'The line is below the 38% vendor margin floor and below MAP at the same time. Rather than deepening the cut, take it back to the floor and open a funded window.',
-    bullets: ['Restore to MAP and close the unfunded markdown', 'Counter with a vendor-funded window before the next flush'],
-    impact: 'Protects 8 pts of margin across 84 units', confidence: 'High', status: 'Open',
+      'Without the 8% grower pool share the line would be at 17.9%. Rather than deepen the allowance, restore the floor and fund a smaller, dated promotion.',
+    bullets: ['Restore to the $37.80 floor and close the expired allowance', 'Counter with a 7% dated allowance through the next ad cycle'],
+    impact: '+$10K margin across the 4,800-case program', confidence: 'High', status: 'Open',
   },
   {
-    id: 'REC-VEN-4', audience: 'Vendor', kind: 'Product mix',
-    title: 'Shift the spring pre-book toward own-label boardshorts',
+    id: 'REC-FS-4', audience: 'Foodservice', kind: 'Product mix',
+    title: 'Move foodservice apple volume toward diced fresh-cut',
     detail:
-      'Branded boardshorts carry a MAP floor and 45–50% margin. Own-label equivalents run near 68% and can be discounted freely for spring-break traffic.',
-    bullets: ['Pre-book 60% branded / 40% own-label instead of 100% branded'],
-    impact: '+9.1 pts blended margin on the category', confidence: 'Medium', status: 'Open',
+      'Packed 88ct trays list at 30% margin and carry a floor; 5 lb diced apples for foodservice run 38% and absorb contract tiers. Offer Keystone the diced pack for its school and hospital accounts.',
+    bullets: ['Propose a 60/40 tray / diced split on the winter contract'],
+    impact: '+5.4 pts blended margin on foodservice apples', confidence: 'Medium', status: 'Open',
   },
 ]
 
 export const RETAIL_KPIS: KpiMonitor[] = [
-  { label: 'Gross margin %', value: '61.8%', trend: 'up' },
-  { label: 'Full-price sell-through', value: '54%', trend: 'up' },
-  { label: 'Markdown %', value: '27%', trend: 'down' },
-  { label: 'Promotion ROI', value: '2.9x', trend: 'flat' },
-  { label: 'Weeks of supply', value: '11.2', trend: 'down' },
-  { label: 'GMROI', value: '3.4', trend: 'up' },
-  { label: 'Units per transaction', value: '2.6', trend: 'up' },
-  { label: 'Store conversion', value: '38%', trend: 'flat' },
-  { label: 'Own-label mix', value: '57%', trend: 'up' },
+  { label: 'Gross margin %', value: '31.4%', trend: 'up' },
+  { label: 'Program sell-through', value: '79%', trend: 'up' },
+  { label: 'Trade spend % of sales', value: '6.8%', trend: 'down' },
+  { label: 'Promotion ROI', value: '2.1x', trend: 'flat' },
+  { label: 'Days of cover', value: '7.4', trend: 'down' },
+  { label: 'Shrink %', value: '2.3%', trend: 'down' },
+  { label: 'Fill rate', value: '97.1%', trend: 'up' },
+  { label: 'On-time in-full', value: '94%', trend: 'flat' },
+  { label: 'Fresh-cut mix', value: '38%', trend: 'up' },
 ]
 
-export const VENDOR_KPIS: KpiMonitor[] = [
-  { label: 'Margin by brand', value: '44.9% avg', trend: 'flat' },
-  { label: 'Co-op funding captured', value: '$312K', trend: 'up' },
-  { label: 'MAP compliance rate', value: '96.2%', trend: 'down' },
-  { label: 'Average program discount', value: '14.2%', trend: 'up' },
-  { label: 'Vendor allowance earned', value: '$208K', trend: 'up' },
-  { label: 'Return-to-vendor rate', value: '3.4%', trend: 'flat' },
-  { label: 'Program margin', value: '43.1%', trend: 'flat' },
-  { label: 'Units per program', value: '1,180 avg', trend: 'up' },
-  { label: 'Pre-book commitment', value: '$4.2M', trend: 'up' },
+export const FOODSERVICE_KPIS: KpiMonitor[] = [
+  { label: 'Margin by contract', value: '27.2% avg', trend: 'flat' },
+  { label: 'Grower pool share captured', value: '$186K', trend: 'up' },
+  { label: 'Floor compliance rate', value: '95.8%', trend: 'down' },
+  { label: 'Average contract discount', value: '7.9%', trend: 'up' },
+  { label: 'Open deductions', value: '$94K', trend: 'down' },
+  { label: 'Contracts renewing in 60 days', value: '4', trend: 'flat' },
+  { label: 'Contract margin', value: '26.4%', trend: 'flat' },
+  { label: 'Cases per contract', value: '2,940 avg', trend: 'up' },
+  { label: 'Committed volume', value: '$6.8M', trend: 'up' },
 ]
 
 // category list for filters
 export const CATEGORIES = [
-  'Swimwear',
-  'Boardshorts',
-  'Tees & Tanks',
-  'Hoodies & Fleece',
-  'Dry-Fit',
-  'Headwear',
-  'Footwear',
-  'Beach Accessories',
-  'Souvenirs',
+  'Apples',
+  'Berries',
+  'Vegetables',
+  'Salads',
+  'Vegetable Blends',
+  'Fruit Cups & Trays',
 ] as const
 
 // ═══════════════════════════════════════════════════════════════════════
-// 5 · Sales performance (seeded, deterministic)
+// 5 · Shipment performance (seeded, deterministic)
 // ═══════════════════════════════════════════════════════════════════════
-// Unit sales are generated rather than listed, because the Price Updates page
-// needs an arbitrary date window and 18 items x 10 locations x 200 days is not
-// something to hand-write. The generator is seeded off (item, location, day),
-// so it is fully reproducible — the same demo shows the same numbers twice —
-// and any date range sums the same way every time.
+// Case shipments are generated rather than listed, because the Price Updates
+// page needs an arbitrary date window and 11 items x 11 customers x 200 days
+// is not something to hand-write. The generator is seeded off (item,
+// customer, day), so it is fully reproducible — the same demo shows the same
+// numbers twice — and any date range sums the same way every time.
 //
-// Shape of the curve: a per-item base rate at an average store, scaled by
-// store size, by Gulf Coast seasonality (spring break, peak summer, the drop
-// after Labor Day), and by day of week, with bounded noise on top.
+// Shape of the curve: a per-item base rate at an average customer, scaled by
+// customer size, by the item's crop season, and by day of week (produce ships
+// Monday to Friday), with bounded noise on top.
 
-/** Days of sales history available before AS_OF. */
+/** Days of shipment history available before AS_OF. */
 export const PERFORMANCE_DAYS = 200
 
 const MS_PER_DAY = 86_400_000
@@ -796,156 +789,130 @@ function rand(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
 
-/** Units/day for this item at an average store in peak season. */
-const ITEM_BASE_RATE: Record<string, number> = {
-  // own label — high volume, impulse purchases
-  'AI-9105': 9.0, // Shark Tooth Necklace
-  'AI-6011': 6.0, // PCB Sunset Tee
-  'AI-6208': 5.2, // Gulf Shores Sunset Tank
-  'AI-5540': 4.0, // Logo Trucker Cap
-  'AI-9020': 3.0, // Sea Turtle Beach Towel
-  'AI-6155': 2.5, // Gulf Shores Dry-Fit Tee
-  'AI-8104': 2.0, // Paradise Dress Tunic
-  'AI-9310': 1.5, // Foam Boogie Board
-  'AI-2255': 1.4, // Ladies Tropical Palm One-Piece
-  'AI-7702': 1.2, // Destin Sun & Stripes Hoodie
-  // branded surf — lower velocity, higher ticket
-  'QS-4090': 1.3, // Quiksilver Boardshort Tee
-  'QS-4412': 1.0, // Quiksilver Everyday Boardshort
-  'RX-2208': 0.9, // Roxy Tie-Side Bottom
-  'VN-8801': 0.8, // Vans Classic Slip-On
-  'FX-6612': 0.8, // Fox Racing Snapback
-  'ON-1174': 0.6, // O'Neill Rash Guard
-  'RC-5521': 0.6, // Rip Curl Surflite Boardshort
-  'VL-3390': 0.5, // Volcom Cheekini Bottom
-}
+/** Demand curve by calendar month, Jan..Dec. */
+const SEASON_CURVES = {
+  apples: [0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.65, 0.8, 1.2, 1.35, 1.2, 1.0],
+  squash: [0.7, 0.6, 0.5, 0.4, 0.3, 0.3, 0.3, 0.5, 1.0, 1.4, 1.5, 1.1],
+  berries: [0.6, 0.6, 0.7, 0.8, 1.0, 1.3, 1.5, 1.3, 0.9, 0.7, 0.6, 0.6],
+  vegetables: [0.8, 0.8, 0.85, 0.9, 1.0, 1.15, 1.2, 1.2, 1.05, 0.95, 0.9, 0.85],
+  freshCut: [0.95, 0.95, 1.0, 1.0, 1.0, 1.05, 1.05, 1.0, 1.05, 1.05, 1.2, 1.3],
+} as const
 
-/** Relative size of each selling location. */
-const LOCATION_WEIGHT: Record<string, number> = {
-  'ST-PCB': 1.5,
-  'ST-DEST': 1.3,
-  'ST-GSH': 1.2,
-  'ST-PEN': 1.2,
-  'ST-SOB': 1.1,
-  'ST-PNS': 1.0,
-  'ST-CCB': 0.9,
-  'ST-FWB': 0.9,
-  'ST-NAV': 0.7,
-  ECOM: 2.2,
+interface ItemProfile {
+  /** Cases/day at an average customer in a 1.0 month. */
+  base: number
+  season: keyof typeof SEASON_CURVES
+  /** Days of cover the item is carrying at its recent run rate. */
+  coverDays: number
+  /** Shelf life from items.csv. */
+  shelfLifeDays: number
 }
 
 /**
- * Weeks of supply each item is carrying at the current rate. This is what
- * drives sell-through: boardshorts sitting on 14-16 weeks going into the
- * off-season are the demo's inventory problem, souvenir tees at 3-5 weeks are
- * the healthy comparison.
+ * Per-item profile for every retail-priced item. Cover is sized against shelf
+ * life: blueberries and mini cucumbers are carrying most of their life in
+ * cover — the demo's inventory problem — while apples and squash sit on weeks
+ * of life with days of cover.
  */
-const ITEM_COVER_WEEKS: Record<string, number> = {
-  'AI-6011': 3,
-  'AI-6208': 3.5,
-  'AI-9105': 4,
-  'AI-5540': 5,
-  'AI-9020': 5,
-  'AI-6155': 5,
-  'AI-8104': 6,
-  'AI-9310': 7,
-  'VN-8801': 7,
-  'AI-7702': 8,
-  'QS-4090': 8,
-  'FX-6612': 8,
-  'AI-2255': 9,
-  'ON-1174': 9,
-  'VL-3390': 10,
-  'RX-2208': 11,
-  'QS-4412': 14,
-  'RC-5521': 16,
+const ITEM_PROFILE: Record<string, ItemProfile> = {
+  'PK-APL-HC-3LB': { base: 14, season: 'apples', coverDays: 10, shelfLifeDays: 45 },
+  'PK-APL-GA-3LB': { base: 11, season: 'apples', coverDays: 14, shelfLifeDays: 45 },
+  'PK-SQB-CTN': { base: 6, season: 'squash', coverDays: 12, shelfLifeDays: 60 },
+  'PK-BLU-PINT': { base: 5, season: 'berries', coverDays: 9, shelfLifeDays: 12 },
+  'PK-CUC-MINI': { base: 7, season: 'vegetables', coverDays: 8, shelfLifeDays: 12 },
+  'PK-PEP-3PK': { base: 4, season: 'vegetables', coverDays: 3, shelfLifeDays: 10 },
+  'FC-APL-SLC-2OZ': { base: 6, season: 'freshCut', coverDays: 5, shelfLifeDays: 18 },
+  'FC-SAL-GARDEN': { base: 8, season: 'freshCut', coverDays: 3, shelfLifeDays: 12 },
+  'FC-VEG-TRAY': { base: 3, season: 'freshCut', coverDays: 2, shelfLifeDays: 9 },
+  'FC-VEG-SQB-DICE': { base: 3.5, season: 'squash', coverDays: 4, shelfLifeDays: 12 },
+  'FC-FRT-CUP-6OZ': { base: 4.5, season: 'freshCut', coverDays: 3, shelfLifeDays: 10 },
 }
 
-/** Gulf Coast beach-retail seasonality, by calendar month. */
-const SEASON_BY_MONTH = [
-  0.35, // Jan
-  0.45, // Feb
-  0.95, // Mar — spring break
-  0.85, // Apr
-  1.0, // May
-  1.3, // Jun
-  1.4, // Jul — peak
-  1.15, // Aug
-  0.7, // Sep — falls away after Labor Day
-  0.5, // Oct
-  0.4, // Nov
-  0.45, // Dec
-]
-
-/** Day-of-week uplift: beach retail is a weekend business. */
-const DOW_FACTOR = [1.0, 0.85, 0.85, 0.9, 0.95, 1.15, 1.35] // Sun..Sat
-
-function dayFactor(date: Date): number {
-  return SEASON_BY_MONTH[date.getMonth()] * DOW_FACTOR[date.getDay()]
+/** Shelf life in days for an item, when it is profiled. */
+export function shelfLifeFor(itemNumber: string): number | undefined {
+  return ITEM_PROFILE[itemNumber]?.shelfLifeDays
 }
 
-/** Units sold of one item at one location on one day. Deterministic. */
-function unitsOnDay(itemNumber: string, location: string, date: Date): number {
-  const base = ITEM_BASE_RATE[itemNumber]
-  const weight = LOCATION_WEIGHT[location]
-  if (base === undefined || weight === undefined) return 0
-  const seed = hashStr(`${itemNumber}|${location}|${date.toISOString().slice(0, 10)}`)
+/** Relative size of each retail customer. */
+const CUSTOMER_WEIGHT: Record<string, number> = {
+  C10001: 1.6,
+  C10002: 1.8,
+  C10003: 1.0,
+  C10006: 1.3,
+  C10005: 0.9,
+  C10007: 2.4,
+  C10008: 2.0,
+  C10009: 0.5,
+  C10010: 0.6,
+  C10026: 0.8,
+  C10027: 0.7,
+}
+
+/** Day-of-week factor: produce ships on weekdays. Sun..Sat. */
+const DOW_FACTOR = [0.25, 1.2, 1.25, 1.2, 1.25, 1.15, 0.45]
+
+/** Cases shipped of one item to one customer on one day. Deterministic. */
+function unitsOnDay(itemNumber: string, customer: string, date: Date): number {
+  const p = ITEM_PROFILE[itemNumber]
+  const weight = CUSTOMER_WEIGHT[customer]
+  if (p === undefined || weight === undefined) return 0
+  const seed = hashStr(`${itemNumber}|${customer}|${date.toISOString().slice(0, 10)}`)
   const noise = 0.7 + rand(seed) * 0.6
-  return Math.round(base * weight * dayFactor(date) * noise)
+  const season = SEASON_CURVES[p.season][date.getMonth()]
+  return Math.round(p.base * weight * season * DOW_FACTOR[date.getDay()] * noise)
 }
 
 /**
- * Weeks of supply is only meaningful against a *recent* run rate — a merchant
- * forecasts forward on how the item is selling now, not on a 90-day average
- * that still includes peak summer. 28 days is four whole weeks, so day-of-week
- * effects average out.
+ * Days of cover is only meaningful against a *recent* run rate — a shipper
+ * plans forward on how the item is moving now. 28 days is four whole weeks,
+ * so day-of-week effects average out.
  */
 export const RECENT_RATE_DAYS = 28
 
-/** Mean daily units over the trailing RECENT_RATE_DAYS. */
-function recentDailyRate(itemNumber: string, location: string): number {
+/** Mean daily cases over the trailing RECENT_RATE_DAYS. */
+function recentDailyRate(itemNumber: string, customer: string): number {
   const end = new Date(AS_OF + 'T00:00:00').getTime()
   let total = 0
   for (let i = 0; i < RECENT_RATE_DAYS; i++) {
-    total += unitsOnDay(itemNumber, location, new Date(end - i * MS_PER_DAY))
+    total += unitsOnDay(itemNumber, customer, new Date(end - i * MS_PER_DAY))
   }
   return total / RECENT_RATE_DAYS
 }
 
 /**
- * On-hand units at AS_OF, sized so the item carries its target weeks of supply
- * *at the recent run rate*. That keeps the grid, the weeks-of-supply figure and
+ * Cases allocated on hand at AS_OF, sized so the item carries its target days
+ * of cover *at the recent run rate*. That keeps the grid, the cover figure and
  * the inventory recommendation telling the same story.
  */
-function onHandAt(itemNumber: string, location: string): number {
-  const cover = ITEM_COVER_WEEKS[itemNumber]
-  if (cover === undefined || LOCATION_WEIGHT[location] === undefined) return 0
-  return Math.round(recentDailyRate(itemNumber, location) * cover * 7)
+function onHandAt(itemNumber: string, customer: string): number {
+  const p = ITEM_PROFILE[itemNumber]
+  if (p === undefined || CUSTOMER_WEIGHT[customer] === undefined) return 0
+  return Math.round(recentDailyRate(itemNumber, customer) * p.coverDays)
 }
 
 /**
- * Weeks of supply left for an item across locations, measured on the trailing
+ * Days of cover left for an item across customers, measured on the trailing
  * run rate rather than on whatever window the user happens to be filtering to.
  */
-export function coverWeeksFor(itemNumber: string, locations: string[]): number {
+export function coverDaysFor(itemNumber: string, customers: string[]): number {
   let rate = 0
   let onHand = 0
-  for (const loc of locations) {
-    rate += recentDailyRate(itemNumber, loc)
-    onHand += onHandAt(itemNumber, loc)
+  for (const c of customers) {
+    rate += recentDailyRate(itemNumber, c)
+    onHand += onHandAt(itemNumber, c)
   }
   if (rate <= 0) return Infinity
-  return onHand / (rate * 7)
+  return onHand / rate
 }
 
 /**
- * Sales performance for one item across a set of locations over a date window.
- * The window is clamped to the history that exists and never runs past AS_OF —
- * there are no future sales.
+ * Shipment performance for one item across a set of customers over a date
+ * window. The window is clamped to the history that exists and never runs
+ * past AS_OF — there are no future shipments.
  */
 export function performanceFor(
   itemNumber: string,
-  locations: string[],
+  customers: string[],
   from: string,
   to: string,
 ): ItemPerformance {
@@ -957,12 +924,12 @@ export function performanceFor(
 
   const windowDays = Math.round((end - start) / MS_PER_DAY) + 1
   let unitsSold = 0
-  for (const loc of locations) {
+  for (const c of customers) {
     for (let t = start; t <= end; t += MS_PER_DAY) {
-      unitsSold += unitsOnDay(itemNumber, loc, new Date(t))
+      unitsSold += unitsOnDay(itemNumber, c, new Date(t))
     }
   }
-  const onHand = locations.reduce((sum, loc) => sum + onHandAt(itemNumber, loc), 0)
+  const onHand = customers.reduce((sum, c) => sum + onHandAt(itemNumber, c), 0)
   return { unitsSold, unitsAvailable: unitsSold + onHand, windowDays }
 }
 
@@ -979,38 +946,38 @@ export interface ReconciliationLine {
 
 export function reconciliation(marginTarget: number): ReconciliationLine[] {
   const retail = PRICING_SETUP.filter((l) => l.mode === 'Retail')
-  const vendor = PRICING_SETUP.filter((l) => l.mode === 'Vendor')
+  const foodservice = PRICING_SETUP.filter((l) => l.mode === 'Foodservice')
   const failing = PRICING_SETUP.filter((l) => lineMarginPct(l) <= marginTarget)
-  const breaches = PRICING_SETUP.filter((l) => lineBreachesMap(l, AS_OF))
-  const ownLabel = PRICING_SETUP.filter((l) => l.productLine === 'Own label')
+  const breaches = PRICING_SETUP.filter((l) => lineBreachesFloor(l, AS_OF))
   const avg = (ls: PricingSetupLine[]) =>
     ls.length ? ls.reduce((s, l) => s + lineMarginPct(l), 0) / ls.length : 0
 
-  // Blended sell-through over the trailing 90 days, across every location.
-  const allLocs = LOCATIONS.map((l) => l.code)
+  // Blended sell-through over the trailing four weeks, on the retail lines'
+  // own customers.
   let sold = 0
   let available = 0
-  for (const item of new Set(PRICING_SETUP.map((l) => l.itemNumber))) {
-    const p = performanceFor(item, allLocs, iso(-90), AS_OF)
+  for (const l of retail) {
+    const p = performanceFor(l.itemNumber, l.customerCodes ?? [], iso(-(RECENT_RATE_DAYS - 1)), AS_OF)
     sold += p.unitsSold
     available += p.unitsAvailable
   }
   const overallSellThrough = available > 0 ? (sold / available) * 100 : 0
+  const states = new Set(CUSTOMERS.map((c) => c.state))
 
   return [
     { label: 'As-of date', value: AS_OF },
-    { label: 'Price overrides on file', value: String(PRICE_OVERRIDES.length) },
-    { label: 'Active pricing setup lines', value: `${PRICING_SETUP.length} (${retail.length} retail · ${vendor.length} vendor)` },
+    { label: 'Order-line price overrides on file', value: String(PRICE_OVERRIDES.length) },
+    { label: 'Active pricing setup lines', value: `${PRICING_SETUP.length} (${retail.length} retail · ${foodservice.length} foodservice)` },
     { label: `Lines at or below ${marginTarget}% margin`, value: `${failing.length} of ${PRICING_SETUP.length}` },
-    { label: 'MAP breaches without an active waiver', value: String(breaches.length) },
-    { label: 'Average margin · own label', value: `${avg(ownLabel).toFixed(1)}%` },
-    { label: 'Average margin · branded', value: `${avg(PRICING_SETUP.filter((l) => l.productLine === 'Branded')).toFixed(1)}%` },
+    { label: 'Below floor without an active promotion', value: String(breaches.length) },
+    { label: 'Average margin · fresh-cut', value: `${avg(PRICING_SETUP.filter((l) => l.productLine === 'Fresh-cut')).toFixed(1)}%` },
+    { label: 'Average margin · packed fresh', value: `${avg(PRICING_SETUP.filter((l) => l.productLine === 'Packed fresh')).toFixed(1)}%` },
     { label: 'Price history records', value: `${PRICE_HISTORY.length} across ${new Set(PRICE_HISTORY.map((r) => r.scopeId)).size} price scopes` },
-    { label: 'Store estate', value: `${STORES.length} locations · ${STORES.filter((s) => s.state === 'FL').length} FL, ${STORES.filter((s) => s.state === 'AL').length} AL` },
-    { label: 'Vendor programs', value: String(VENDOR_PROGRAMS.length) },
-    { label: 'Sales history generated', value: `${PERFORMANCE_DAYS} days x ${LOCATIONS.length} locations, seeded` },
+    { label: 'Retail customers', value: `${CUSTOMERS.length} ship-tos across ${states.size} states` },
+    { label: 'Foodservice contracts', value: String(FOODSERVICE_CONTRACTS.length) },
+    { label: 'Shipment history generated', value: `${PERFORMANCE_DAYS} days x ${CUSTOMERS.length} customers, seeded` },
     {
-      label: 'Trailing 90-day sell-through (all locations)',
+      label: 'Trailing 4-week sell-through (retail lines)',
       value: `${overallSellThrough.toFixed(1)}%`,
     },
   ]

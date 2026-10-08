@@ -5,13 +5,15 @@ import {
   LOCATIONS,
   ORG_HIERARCHY,
   performanceFor,
-  coverWeeksFor,
+  coverDaysFor,
+  shelfLifeFor,
+  RECENT_RATE_DAYS,
 } from '../data/mockData'
 import {
   lineMarginPct,
   lineSalesPrice,
-  lineBelowMap,
-  lineBreachesMap,
+  lineBelowFloor,
+  lineBreachesFloor,
   sellThroughPct,
   salesVelocity,
   orgLeaves,
@@ -36,28 +38,28 @@ const RANK_LABELS: Record<RankBy, string> = {
 }
 
 const VELOCITY_LABELS: Record<VelocityBasis, string> = {
-  day: 'units / day',
-  week: 'units / week',
-  month: 'units / month',
+  day: 'cases / day',
+  week: 'cases / week',
+  month: 'cases / month',
 }
 
-/** A pricing line joined to how it actually sold in the selected locations. */
+/** A pricing line joined to how it actually shipped to the selected customers. */
 interface Row {
   line: PricingSetupLine
-  /** Selected locations this line's price actually applies to. */
+  /** Selected customers this line's price actually applies to. */
   locations: string[]
   perf: ItemPerformance
 }
 
 export function PriceUpdates() {
   // ── filters ──
-  const [fromDate, setFromDate] = useState(iso(-90))
+  const [fromDate, setFromDate] = useState(iso(-(RECENT_RATE_DAYS - 1)))
   const [toDate, setToDate] = useState(AS_OF)
   const [marginFilter, setMarginFilter] = useState(100)
   const [category, setCategory] = useState('All')
   const [itemQuery, setItemQuery] = useState('')
   const [basis, setBasis] = useState<VelocityBasis>('week')
-  const [stores, setStores] = useState<Set<string>>(new Set(LOCATIONS.map((l) => l.code)))
+  const [inScope, setInScope] = useState<Set<string>>(new Set(LOCATIONS.map((l) => l.code)))
 
   // ── ranking ──
   const [rankBy, setRankBy] = useState<RankBy>('velocity')
@@ -71,9 +73,10 @@ export function PriceUpdates() {
   const [, showToast, toastNode] = useToast()
 
   /**
-   * Price Updates works on the retail book — those are the prices that carry a
-   * store presence and therefore a sell-through. Vendor program lines are
-   * purchasing agreements and are handled on the Margin Threshold Test.
+   * Price Updates works on the retail book — those are the prices that ship to a
+   * set of customers and therefore carry a velocity and a sell-through.
+   * Foodservice contract lines are negotiated terms and are handled on the
+   * Margin Threshold Test.
    */
   const rows: Row[] = useMemo(() => {
     const q = itemQuery.trim().toLowerCase()
@@ -82,15 +85,15 @@ export function PriceUpdates() {
       .filter((l) => (category === 'All' ? true : l.category === category))
       .filter((l) => lineMarginPct(l) <= marginFilter)
       .filter((l) =>
-        q ? l.itemNumber.toLowerCase().includes(q) || l.styleName.toLowerCase().includes(q) : true,
+        q ? l.itemNumber.toLowerCase().includes(q) || l.itemName.toLowerCase().includes(q) : true,
       )
       .map((l) => {
-        const locations = (l.storeCodes ?? []).filter((c) => stores.has(c))
+        const locations = (l.customerCodes ?? []).filter((c) => inScope.has(c))
         return { line: l, locations, perf: performanceFor(l.itemNumber, locations, fromDate, toDate) }
       })
-      // a line with no selected location in scope has nothing to say here
+      // a line with no selected customer in scope has nothing to say here
       .filter((r) => r.locations.length > 0)
-  }, [lines, category, marginFilter, itemQuery, stores, fromDate, toDate])
+  }, [lines, category, marginFilter, itemQuery, inScope, fromDate, toDate])
 
   const ranked = useMemo(() => {
     const score = (r: Row) =>
@@ -105,8 +108,8 @@ export function PriceUpdates() {
 
   const kpis = useMemo(() => {
     if (rows.length === 0) return null
-    // Best seller is a headline total. Slowest mover has to be per location,
-    // or it just finds whichever line is stocked in the fewest stores.
+    // Best seller is a headline total. Slowest mover has to be per customer,
+    // or it just finds whichever line ships to the fewest customers.
     const byTotal = [...rows].sort(
       (a, b) => salesVelocity(b.perf, basis) - salesVelocity(a.perf, basis),
     )
@@ -143,7 +146,7 @@ export function PriceUpdates() {
   }
 
   function toggleLocations(codes: string[], on: boolean) {
-    setStores((s) => {
+    setInScope((s) => {
       const n = new Set(s)
       for (const c of codes) {
         if (on) n.add(c)
@@ -161,7 +164,7 @@ export function PriceUpdates() {
     showToast(summary)
   }
 
-  const allSelected = stores.size === LOCATIONS.length
+  const allSelected = inScope.size === LOCATIONS.length
 
   return (
     <>
@@ -169,9 +172,10 @@ export function PriceUpdates() {
         <div className="eyebrow">Performance-led repricing</div>
         <h1>Price Updates</h1>
         <p className="lede">
-          Rank the retail book by how it is actually selling — velocity, sell-through, and margin
-          together — then push a price change to the locations you choose. The Margin Threshold Test
-          asks which prices are too thin; this asks which prices the sell-through says are wrong.
+          Rank the retail book by how it is actually shipping — case velocity, sell-through, and days
+          of cover against shelf life — then push a price change to the customers you choose. The
+          Margin Threshold Test asks which prices are too thin; this asks which prices the movement
+          says are wrong.
         </p>
       </header>
 
@@ -220,13 +224,13 @@ export function PriceUpdates() {
           <input
             className="input"
             style={{ width: 150 }}
-            placeholder="e.g. QS-4412"
+            placeholder="e.g. PK-BLU-PINT"
             value={itemQuery}
             onChange={(e) => setItemQuery(e.target.value)}
           />
         </div>
         <div className="field">
-          <label>Units per</label>
+          <label>Cases per</label>
           <select
             className="select"
             value={basis}
@@ -241,17 +245,17 @@ export function PriceUpdates() {
 
       <div className="card filter-bar" style={{ alignItems: 'center' }}>
         <div className="field" style={{ flex: 1 }}>
-          <label>Stores</label>
+          <label>Customers</label>
           <div className="chip-select">
             <button
               className={`loc-chip${allSelected ? ' on' : ''}`}
               onClick={() => toggleLocations(LOCATIONS.map((l) => l.code), !allSelected)}
             >
-              All locations
+              All customers
             </button>
             {(ORG_HIERARCHY.children ?? []).map((region) => {
               const leaves = orgLeaves(region)
-              const on = leaves.every((c) => stores.has(c))
+              const on = leaves.every((c) => inScope.has(c))
               return (
                 <button
                   key={region.code}
@@ -267,8 +271,8 @@ export function PriceUpdates() {
             {LOCATIONS.map((l) => (
               <button
                 key={l.code}
-                className={`loc-chip${stores.has(l.code) ? ' on' : ''}`}
-                onClick={() => toggleLocations([l.code], !stores.has(l.code))}
+                className={`loc-chip${inScope.has(l.code) ? ' on' : ''}`}
+                onClick={() => toggleLocations([l.code], !inScope.has(l.code))}
               >
                 {l.name}
               </button>
@@ -283,10 +287,10 @@ export function PriceUpdates() {
             label={`Best seller · ${VELOCITY_LABELS[basis]}`}
             value={num(Math.round(salesVelocity(kpis.best.perf, basis) * 10) / 10)}
             tone="sage"
-            sub={kpis.best.line.styleName}
+            sub={kpis.best.line.itemName}
           />
           <Kpi
-            label={`Slowest mover · ${VELOCITY_LABELS[basis]} / loc`}
+            label={`Slowest mover · ${VELOCITY_LABELS[basis]} / customer`}
             value={num(
               Math.round(
                 (salesVelocity(kpis.slowest.perf, basis) /
@@ -295,17 +299,17 @@ export function PriceUpdates() {
               ) / 10,
             )}
             tone="red"
-            sub={kpis.slowest.line.styleName}
+            sub={kpis.slowest.line.itemName}
           />
           <Kpi
             label="Sell-through rate"
             value={pct(kpis.sellThrough)}
-            sub="units sold ÷ units available"
+            sub="cases shipped ÷ cases available"
           />
-          <Kpi label="Units sold" value={num(kpis.unitsSold)} sub={`${shortDate(fromDate)} – ${shortDate(toDate)}`} />
+          <Kpi label="Cases shipped" value={num(kpis.unitsSold)} sub={`${shortDate(fromDate)} – ${shortDate(toDate)}`} />
           <Kpi
-            label="Locations in scope"
-            value={`${stores.size} / ${LOCATIONS.length}`}
+            label="Customers in scope"
+            value={`${inScope.size} / ${LOCATIONS.length}`}
             sub={`${ranked.length} price line${ranked.length === 1 ? '' : 's'} match`}
           />
         </div>
@@ -314,7 +318,7 @@ export function PriceUpdates() {
           <span className="callout-glyph" aria-hidden="true">
             ⚠
           </span>
-          <span>No retail price lines match these filters — widen the store selection or clear the item number.</span>
+          <span>No retail price lines match these filters — widen the customer selection or clear the item number.</span>
         </div>
       )}
 
@@ -371,7 +375,7 @@ export function PriceUpdates() {
               <th>Product</th>
               <th>Item</th>
               <th>Category</th>
-              <th>Color / Size</th>
+              <th>Pack</th>
               <th>Channel</th>
               <th className="num">Qty</th>
               <th className="num">Base price (TA)</th>
@@ -380,7 +384,7 @@ export function PriceUpdates() {
               <th className="num">Sales price</th>
               <th className="num">Sell-through</th>
               <th className="num">Velocity</th>
-              <th className="num">Wks supply</th>
+              <th className="num">Days cover</th>
               <th className="num">Margin %</th>
             </tr>
           </thead>
@@ -389,8 +393,12 @@ export function PriceUpdates() {
               const m = lineMarginPct(l)
               const st = sellThroughPct(perf)
               const vel = salesVelocity(perf, basis)
-              const cover = coverWeeksFor(l.itemNumber, locations)
-              const breach = lineBreachesMap(l, AS_OF)
+              const cover = coverDaysFor(l.itemNumber, locations)
+              // Cover only means something next to shelf life: 9 days is
+              // nothing for squash and most of the life of a blueberry.
+              const life = shelfLifeFor(l.itemNumber)
+              const lifeUsed = life && Number.isFinite(cover) ? cover / life : 0
+              const breach = lineBreachesFloor(l, AS_OF)
               return (
                 <tr key={l.id} className={selected.has(l.id) ? 'row-selected' : undefined}>
                   <td>
@@ -398,23 +406,23 @@ export function PriceUpdates() {
                       type="checkbox"
                       checked={selected.has(l.id)}
                       onChange={() => toggle(l.id)}
-                      aria-label={`Select ${l.styleName}`}
+                      aria-label={`Select ${l.itemName}`}
                     />
                   </td>
                   <td className="style-cell">
-                    <div className="style-name">{l.styleName}</div>
+                    <div className="style-name">{l.itemName}</div>
                     <div className="style-sub">
                       {l.productLine}
-                      {breach && <span className="map-breach"> · below MAP</span>}
+                      {breach && <span className="map-breach"> · below floor, promo ended</span>}
                     </div>
                   </td>
                   <td className="item-code">{l.itemNumber}</td>
                   <td>{l.category}</td>
-                  <td>{l.colorSize}</td>
+                  <td>{l.pack}</td>
                   <td>
                     <div>{l.channel}</div>
                     <div className="style-sub">
-                      {l.channelDetail} · {locations.length} loc
+                      {l.channelDetail} · {locations.length} cust
                     </div>
                   </td>
                   <td className="num">{num(l.quantity)}</td>
@@ -434,12 +442,12 @@ export function PriceUpdates() {
                   </td>
                   <td className="num">
                     {money(lineSalesPrice(l))}
-                    {lineBelowMap(l) && !breach && (
-                      <div style={{ fontSize: 11, color: 'var(--warning-text)' }}>MAP waived</div>
+                    {lineBelowFloor(l) && !breach && (
+                      <div style={{ fontSize: 11, color: 'var(--warning-text)' }}>on promo</div>
                     )}
                   </td>
                   <td className="num">
-                    <span className={st >= 60 ? 'margin-ok' : st < 35 ? 'margin-red' : undefined}>
+                    <span className={st >= 85 ? 'margin-ok' : st < 70 ? 'margin-red' : undefined}>
                       {pct(st)}
                     </span>
                     <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>
@@ -449,13 +457,16 @@ export function PriceUpdates() {
                   <td className="num">
                     {num(Math.round(vel * 10) / 10)}
                     <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>
-                      {num(Math.round((vel / locations.length) * 10) / 10)} per location
+                      {num(Math.round((vel / locations.length) * 10) / 10)} per customer
                     </div>
                   </td>
                   <td className="num">
-                    <span className={cover > 12 ? 'margin-red' : cover < 5 ? 'margin-ok' : undefined}>
-                      {Number.isFinite(cover) ? `${Math.round(cover)} wks` : '—'}
+                    <span className={lifeUsed > 0.6 ? 'margin-red' : lifeUsed < 0.35 ? 'margin-ok' : undefined}>
+                      {Number.isFinite(cover) ? `${Math.round(cover)} days` : '—'}
                     </span>
+                    {life && (
+                      <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>of {life}-day life</div>
+                    )}
                   </td>
                   <td className={`num ${m <= marginFilter && marginFilter < 100 ? 'margin-red' : 'margin-ok'}`}>
                     {pct(m)}
@@ -500,7 +511,7 @@ export function PriceUpdates() {
           <dl className="detail-list">
             <dt>Applies to</dt>
             <dd>
-              {discountDetail.styleName} ({discountDetail.itemNumber}) · {discountDetail.colorSize}
+              {discountDetail.itemName} ({discountDetail.itemNumber}) · {discountDetail.pack}
             </dd>
             <dt>Current qty</dt>
             <dd>
@@ -533,7 +544,7 @@ export function PriceUpdates() {
           lines={selectedLines}
           showRollout
           showMultiplier
-          note="Roll-out defaults to the locations these prices already apply to."
+          note="Roll-out defaults to the customers these prices already apply to."
           onClose={() => setRepriceOpen(false)}
           onApply={applyReprice}
         />
