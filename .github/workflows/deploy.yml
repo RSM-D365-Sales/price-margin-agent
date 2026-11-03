@@ -34,10 +34,14 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=price-margin-agent
-      # RIMEX build on a permanent branch alias of the same project:
-      # https://rimex.price-margin-agent.pages.dev — production stays Bluestem.
+      # Industrial build (rimex scenario) as its own Pages project, so the URL
+      # carries no prospect name: https://industrial-price-margin.pages.dev
+      - run: npx wrangler pages project create industrial-price-margin --production-branch=main || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist-rimex --project-name=price-margin-agent --branch=rimex
+          command: pages deploy dist-rimex --project-name=industrial-price-margin --branch=main

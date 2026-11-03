@@ -275,7 +275,7 @@ prospect's bundle never contains another company's data. The contract is
 | Scenario | Build | Who it is for |
 |---|---|---|
 | `bluestem` (default) | `npm run build` → `dist/` | IFPA show circuit; what `main` / production serve |
-| `rimex` | `npm run build:rimex` → `dist-rimex/` | RIMEX (rimex.com) — wheels & rims |
+| `rimex` | `npm run build:rimex` → `dist-rimex/` | RIMEX (rimex.com) — wheels & rims. Published as Pages project `industrial-price-margin` (https://industrial-price-margin.pages.dev) so the URL carries no prospect name |
 
 **RIMEX** is a rename, not a re-tune: every price, cost, floor, discount,
 quantity and date offset is the Bluestem number, so the beats are identical
