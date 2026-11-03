@@ -277,15 +277,21 @@ prospect's bundle never contains another company's data. The contract is
 | `bluestem` (default) | `npm run build` → `dist/` | IFPA show circuit; what `main` / production serve |
 | `rimex` | `npm run build:rimex` → `dist-rimex/` | RIMEX (rimex.com) — wheels & rims. Published as Pages project `industrial-price-margin` (https://industrial-price-margin.pages.dev) so the URL carries no prospect name |
 
-**RIMEX** is a rename, not a re-tune: every price, cost, floor, discount,
-quantity and date offset is the Bluestem number, so the beats are identical
-(6 of 20 lines fail 25%, all hardware; 3 below floor with no promo; headline
-leak is the Keystone Ridge 63 in wedge kit, allowance TP-2026-118 nine days
-past its window). Mapping:
+**RIMEX** wheels and rim components (TSR-63-4400, TSR-57-4000, TSR-49-3600,
+LR-63-HD, BSB-57) come from one item master, `src/scenarios/rimex/items.ts`:
+name, list price and cost. The Price Simulator, pricing setup lines, overrides
+and price history all read it, and `assertMasterConsistency()` in
+`rimex/data.ts` throws at load if any page would show a different cost or list
+price. TSR-63-4400's 24,875.59 list is the F&SC base price. The rest of the
+book (service kits, steel hardware) is a rename of the Bluestem numbers. Beats:
+6 of 20 lines fail 25%, all wheels & hardware; 3 below floor with no promo —
+headline is Keystone Ridge's TSR-63-4400 contract line at 21,144.25 (15%
+allowance, TP-2026-118 nine days past its window) against a 22,388 floor.
+Mapping:
 
 | Bluestem | RIMEX |
 |---|---|
-| Fresh-cut (`FC-*`) / packed fresh (`PK-*`) | Service kits (`SK-*`) / wheel hardware (`HW-*`) |
+| Fresh-cut (`FC-*`) / packed fresh (`PK-*`) | Service kits (`SK-*`) / wheels & hardware (`TSR-*`, rim components, `HW-*`) |
 | Retail customers (grocery, club, natural, e-com) | Dealers (mining, national accounts, ag, online parts) |
 | Foodservice contracts | Fleet contracts (mine sites, quarries, haulage, earthworks) |
 | Grower pool share | Mill program share (steel mill funds part of a promo on hardware) |

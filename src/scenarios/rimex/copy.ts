@@ -48,10 +48,10 @@ export const copy: ScenarioCopy = {
       'Promotion timing, price holds and increases, seasonal inventory, and fleet contract guidance — grounded in the KPIs the agent monitors.',
     recsKpiSub: 'dealer + fleet agents',
     linesNote:
-      'Service kits absorb a 15% promotion and still clear the floor. Wheel hardware does not — a routine 10% deal takes it under, which is why every failing line is hardware.',
+      'Service kits absorb a 15% promotion and still clear the floor. Wheels and hardware run thinner — a 15% allowance on an assembly or a routine 10% deal on hardware takes them under, which is why every failing line is in that book.',
   },
   overrides: {
-    lede: 'Every sales-order line where a rep typed over the system price, across dealers and fleet contracts. Filtered to margins at or below your threshold, ranked lowest margin first. Wheel hardware in a dealer price group also shows whether the override went under the floor.',
+    lede: 'Every sales-order line where a rep typed over the system price, across dealers and fleet contracts. Filtered to margins at or below your threshold, ranked lowest margin first. Wheels and hardware in a dealer price group also show whether the override went under the floor.',
   },
   threshold: {
     lede: 'dealer price groups and trade promotions on the dealer side, contract lines with their floors and mill program share on the fleet side',
@@ -89,7 +89,7 @@ export const copy: ScenarioCopy = {
     customerKeywords: ['customer', 'dealer', 'account'],
     unitCost: 'unit cost',
     commodityHits: (commodity, hits) =>
-      `${commodity} of ${hits} are wheel hardware, where list margin is thin enough that a routine deal crosses the floor. `,
+      `${commodity} of ${hits} are wheels & hardware, where list margin is thin enough that a routine deal crosses the floor. `,
     inventoryMeasured: (cover, life, price, margin) =>
       `Measured now: ${cover} days of cover against ${life} days left in the selling window, ` +
       `and the online parts price is already ${price} — exactly on its floor at ${margin} margin. ` +
@@ -97,7 +97,7 @@ export const copy: ScenarioCopy = {
     contractsHeader: (n) => `${n} open fleet contract recommendations:`,
     pooledLines: (pooled, total) =>
       `${pooled} of ${total} priced lines currently carry a mill program share. ` +
-      `On steel hardware that share is the difference between a promotion that holds margin and one that does not.`,
+      `On steel items that share is the difference between a promotion that holds margin and one that does not.`,
     customersIntro: (customers, regions) =>
       `The dealer book prices ${customers} dealers across ${regions} states and provinces, plus the fleet contracts.`,
     help:
@@ -111,7 +111,7 @@ export const copy: ScenarioCopy = {
   },
   reconciliation: {
     premiumAvg: 'Average margin · service kits',
-    commodityAvg: 'Average margin · wheel hardware',
+    commodityAvg: 'Average margin · wheels & hardware',
     customersLabel: 'Dealers',
     contractsLabel: 'Fleet contracts',
   },

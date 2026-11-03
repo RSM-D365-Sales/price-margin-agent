@@ -54,7 +54,8 @@ export function seasonOf(isoDate: string): string {
 
 /**
  * Service kits (SK-*) are RIMEX-engineered seal, valve and rebuild kits —
- * value-added, ~38–44% list margin. Wheel hardware (HW-*) is steel: wedges,
- * studs, clamps, bolts and rings, priced off the mill index at ~28–32%.
+ * value-added, ~38–44% list margin. Wheels & hardware is the steel book: TSR
+ * wheel assemblies, rim components and hardware, priced off the mill index.
  */
-export const LINES = { premium: 'Service kits', commodity: 'Wheel hardware' }
+// Must match WHEELS_LINE in ./items.ts.
+export const LINES = { premium: 'Service kits', commodity: 'Wheels & hardware' }

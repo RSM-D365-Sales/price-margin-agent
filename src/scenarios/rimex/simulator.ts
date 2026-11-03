@@ -15,11 +15,15 @@
 //   · TSR-49-3600 — a live Q4 service-centre program stacks for SC; an
 //     expired fleet allowance shows as "outside dates".
 //   · Components (CMP group) — an All-customers volume break stacks with the
-//     aftermarket group discount at 20+ units.
+//     aftermarket group discount at 20+ units; RIM-006's negotiated BSB-57
+//     price takes the aftermarket discount on top (stacking, under floor).
+//
+// List prices and costs are NOT set here — they come from ./items.ts.
 
 import { makeIso } from '../../lib/dates'
 import type { SimulatorData, TradeAgreementLine } from '../../models/tradeAgreements'
 import { AS_OF } from './config'
+import { MASTER } from './items'
 
 const iso = makeIso(AS_OF)
 
@@ -60,13 +64,16 @@ export const simulator: SimulatorData = {
     { account: 'RIM-008', name: 'RMX2 Intercompany Sales', type: 'Intercompany', priceGroup: 'IC', floorExempt: true, items: ['TSR-63-4400', 'TSR-57-4000', 'TSR-49-3600', 'LR-63-HD', 'BSB-57'] },
   ],
 
-  items: [
-    { itemNumber: 'TSR-63-4400', name: '63" TSR Wheel Assembly — 44.00/5.0', unit: 'ea', basePrice: 24875.59, unitCost: 15900, lineDiscountGroup: 'RIM' },
-    { itemNumber: 'TSR-57-4000', name: '57" TSR Wheel Assembly — 40.00/4.5', unit: 'ea', basePrice: 19640, unitCost: 12450, lineDiscountGroup: 'RIM' },
-    { itemNumber: 'TSR-49-3600', name: '49" TSR Wheel Assembly — 36.00/4.0', unit: 'ea', basePrice: 13280, unitCost: 8520, lineDiscountGroup: 'RIM' },
-    { itemNumber: 'LR-63-HD', name: '63" Lock Ring — Heavy Duty', unit: 'ea', basePrice: 2145, unitCost: 1310, lineDiscountGroup: 'CMP' },
-    { itemNumber: 'BSB-57', name: '57" Bead Seat Band', unit: 'ea', basePrice: 3480, unitCost: 2190, lineDiscountGroup: 'CMP' },
-  ],
+  // Names, list prices and costs come from the item master, so the simulator
+  // and the rest of the workspace can never disagree.
+  items: Object.values(MASTER).map((m) => ({
+    itemNumber: m.itemNumber,
+    name: m.name,
+    unit: m.unit,
+    basePrice: m.list,
+    unitCost: m.cost,
+    lineDiscountGroup: m.discountGroup,
+  })),
 
   agreements: [
     // ── TSR-63-4400 · as in the F&SC journal ──
@@ -96,9 +103,9 @@ export const simulator: SimulatorData = {
     L('TA-030', 'price', 'All', '', 'Table', 'LR-63-HD', 2095, 0, { note: 'FY26 component list price' }),
     L('TA-031', 'price', 'Group', 'IC', 'Table', 'LR-63-HD', 1380, 0, { note: 'Intercompany transfer price' }),
     L('TA-032', 'price', 'Table', 'RIM-006', 'Table', 'BSB-57', 3150, 0, { note: 'Customer price agreement' }),
-    L('TA-033', 'price', 'Group', 'IC', 'Table', 'BSB-57', 2280, 0, { note: 'Intercompany transfer price' }),
-    L('TA-034', 'lineDiscount', 'Group', 'AM', 'Group', 'CMP', 0, 12, { note: 'Aftermarket discount on components' }),
-    L('TA-035', 'lineDiscount', 'Group', 'SC', 'Group', 'CMP', 0, 8, { note: 'Service center discount on components' }),
+    L('TA-033', 'price', 'Group', 'IC', 'Table', 'BSB-57', 2540, 0, { note: 'Intercompany transfer price' }),
+    L('TA-034', 'lineDiscount', 'Group', 'AM', 'Group', 'CMP', 0, 10, { note: 'Aftermarket discount on components' }),
+    L('TA-035', 'lineDiscount', 'Group', 'SC', 'Group', 'CMP', 0, 5, { note: 'Service center discount on components' }),
     L('TA-036', 'lineDiscount', 'All', '', 'Group', 'CMP', 0, 5, { fromQty: 20, note: 'Component volume break — all customers' }),
   ],
 

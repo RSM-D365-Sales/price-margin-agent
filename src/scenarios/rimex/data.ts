@@ -1,32 +1,30 @@
 // ── Pricing & Margin Workspace · RIMEX dataset ───────────────────────────
 //
-// This file is the single source of truth for the RIMEX build. Every figure is
-// synthetic. It was derived from the Bluestem dataset as a RENAME, not a
-// re-tune: every price, cost, floor, discount, quantity and date offset is the
-// Bluestem number, so the demo's beats survive verbatim in wheel-shop clothes
-// (6 of 20 lines fail the 25% test, all of them wheel hardware; 3 price below
-// floor with no active promotion; the headline leak is a fleet allowance that
-// outlived its promotion by nine days).
+// Single source of truth for the RIMEX build. Every figure is synthetic.
+//
+// Wheel assemblies (TSR-63-4400, TSR-57-4000, TSR-49-3600) and rim components
+// (LR-63-HD, BSB-57) take name, list price and cost from ./items.ts — the
+// same master the Price Simulator reads — and assertMasterConsistency() below
+// throws if any page would show a different cost or list price. Their
+// quantities are wheel volumes (tens of units, not thousands).
+//
+// The rest of the book (service kits, steel hardware) was derived from the
+// Bluestem dataset as a rename: same prices, costs, discounts and offsets.
 //
 //   · Service kits (SK-*) — RIMEX-engineered O-ring, bead-seat, valve and rim
 //     rebuild kits built at Surrey. ~38–44% list margin; a 15% promotion
 //     still clears 25%.
-//   · Wheel hardware (HW-*) — steel wedges, studs, clamps, bolts and rings,
-//     priced off the mill index at ~28–32%. A 10% deal takes it under the
-//     floor. On steel hardware the mill's program can fund part of a
-//     promotional price (the "mill program share", poolSharePct).
-//   That gap is the demo's whole argument: promoting service kits is cheap,
-//   promoting hardware is where margin quietly disappears.
+//   · Wheels & hardware — TSR assemblies, rim components and steel hardware.
+//     Thinner: a 15% allowance on an assembly or a routine 10% deal on
+//     hardware takes them under the floor. The mill's program can fund part
+//     of a promotional price on steel items (the "mill program share").
 //
-// Two books: dealers (mining, national accounts, ag and online parts — the
-// price-group book) and fleet contracts (mine sites, quarries, haulage and
-// earthworks contractors).
+// Beats: 6 of 20 lines fail 25%, all wheels & hardware; 3 price below floor
+// with no active promotion — the headline is Keystone Ridge's 63" TSR
+// assembly, whose Q3 allowance outlived TP-2026-118 by nine days.
 //
-// The cover-vs-life measure on Price Updates reads as days of cover against
-// days left in the item's selling window: ag dual-wheel clamps carry 9 days
-// of cover with 12 days left in the harvest window — after which ag demand
-// goes quiet until spring planting.
-//
+// Two books: dealers (mining, national accounts, ag and online parts) and
+// fleet contracts (mine sites, quarries, haulage and earthworks contractors).
 // Every date is derived from AS_OF in ./config.ts. RIMEX is the tenant; every
 // dealer, fleet customer, contract and rep below is fictional.
 
@@ -42,6 +40,14 @@ import type {
 } from '../../models/types'
 import { AS_OF } from './config'
 import { simulator } from './simulator'
+import { MASTER, WHEELS_LINE, wheel } from './items'
+
+// Wheels and rim components take list price and cost from the item master.
+const T63 = MASTER['TSR-63-4400']
+const T57 = MASTER['TSR-57-4000']
+const T49 = MASTER['TSR-49-3600']
+const LR63 = MASTER['LR-63-HD']
+const BSB57 = MASTER['BSB-57']
 
 const iso = makeIso(AS_OF)
 
@@ -99,27 +105,25 @@ const EMAIL = (name: string) => `${name.toLowerCase().replace(' ', '.')}@rimex.c
 
 const PRICE_OVERRIDES: PriceOverride[] = [
   {
-    id: 'OVR-001', orderNumber: 'SO-50812', orderDate: iso(-2), cases: 336,
+    id: 'OVR-001', orderNumber: 'SO-50812', orderDate: iso(-2), cases: 8,
     channel: 'Mining Dealer', customer: 'Northern Shield Tire & Wheel',
-    itemName: 'Stud & Nut Set 49 in', itemNumber: 'HW-STN-49',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
-    unitCost: 13.4, originalPrice: 18.75, overridePrice: 15.5, floorPrice: 16.9,
+    ...wheel('TSR-49-3600'),
+    unitCost: T49.cost, originalPrice: T49.list, overridePrice: 10980, floorPrice: 11970,
     reasonCode: 'Promo price overlap', overriddenBy: 'Mike Rennick', overriddenByEmail: EMAIL('Mike Rennick'),
   },
   {
     id: 'OVR-002', orderNumber: 'SO-50797', orderDate: iso(-3), cases: 168,
     channel: 'Fleet Contract', customer: 'Tamarack Basin Coal',
     itemName: 'Spacer Ring Set 33 in', itemNumber: 'HW-SPC-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '4-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '4-pc set',
     unitCost: 13.5, originalPrice: 19.0, overridePrice: 17.5, floorPrice: 17.1,
     reasonCode: 'Volume deal', overriddenBy: 'Arjun Sandhu', overriddenByEmail: EMAIL('Arjun Sandhu'),
   },
   {
-    id: 'OVR-003', orderNumber: 'SO-50771', orderDate: iso(-5), cases: 480,
+    id: 'OVR-003', orderNumber: 'SO-50771', orderDate: iso(-5), cases: 12,
     channel: 'National Account', customer: 'Westline Equipment Group',
-    itemName: 'TSR Wedge & Bolt Set 57 in', itemNumber: 'HW-WDG-57',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
-    unitCost: 15.8, originalPrice: 22.5, overridePrice: 20.25, floorPrice: 20.25,
+    ...wheel('TSR-57-4000'),
+    unitCost: T57.cost, originalPrice: T57.list, overridePrice: 17676, floorPrice: 17676,
     reasonCode: 'Competitive match', overriddenBy: 'Claire Fournier', overriddenByEmail: EMAIL('Claire Fournier'),
   },
   {
@@ -131,11 +135,10 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     reasonCode: 'Aged stock / open box', overriddenBy: 'Arjun Sandhu', overriddenByEmail: EMAIL('Arjun Sandhu'),
   },
   {
-    id: 'OVR-005', orderNumber: 'SO-50718', orderDate: iso(-9), cases: 240,
+    id: 'OVR-005', orderNumber: 'SO-50718', orderDate: iso(-9), cases: 6,
     channel: 'Fleet Contract', customer: 'Keystone Ridge Copper',
-    itemName: 'TSR Wedge Kit 63 in', itemNumber: 'HW-WDG-63',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '24-pc kit',
-    unitCost: 29.3, originalPrice: 42.0, overridePrice: 34.5, floorPrice: 37.8,
+    ...wheel('TSR-63-4400'),
+    unitCost: T63.cost, originalPrice: T63.list, overridePrice: 20435, floorPrice: 22388,
     reasonCode: 'Contract price not updated', overriddenBy: 'Mike Rennick', overriddenByEmail: EMAIL('Mike Rennick'),
   },
   {
@@ -150,7 +153,7 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-007', orderNumber: 'SO-50655', orderDate: iso(-13), cases: 168,
     channel: 'Fleet Contract', customer: 'Ashcroft Contract Haulage',
     itemName: 'Dual-Wheel Clamp Set HD', itemNumber: 'HW-DCL-HD',
-    category: 'Dual & ag wheels', productLine: 'Wheel hardware', pack: '8-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '8-pc set',
     unitCost: 19.4, originalPrice: 27.2, overridePrice: 23.5, floorPrice: 24.5,
     reasonCode: 'Aged stock / open box', overriddenBy: 'Ben Tran', overriddenByEmail: EMAIL('Ben Tran'),
   },
@@ -158,16 +161,15 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-008', orderNumber: 'SO-50631', orderDate: iso(-16), cases: 60,
     channel: 'Ag Dealer', customer: 'Quill Lake Ag Equipment',
     itemName: 'Rim Bolt Set 33 in', itemNumber: 'HW-BLT-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '16-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '16-pc set',
     unitCost: 19.6, originalPrice: 30.0, overridePrice: 27.0,
     reasonCode: 'Competitive match', overriddenBy: 'Arjun Sandhu', overriddenByEmail: EMAIL('Arjun Sandhu'),
   },
   {
-    id: 'OVR-009', orderNumber: 'SO-50602', orderDate: iso(-19), cases: 84,
+    id: 'OVR-009', orderNumber: 'SO-50602', orderDate: iso(-19), cases: 6,
     channel: 'Mining Dealer', customer: 'Sonoran OTR Supply',
-    itemName: 'Flange Nut Set 33 in', itemNumber: 'HW-NUT-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '20-pc set',
-    unitCost: 17.0, originalPrice: 24.0, overridePrice: 21.25, floorPrice: 21.6,
+    ...wheel('BSB-57'),
+    unitCost: BSB57.cost, originalPrice: BSB57.list, overridePrice: 3080, floorPrice: 3132,
     reasonCode: 'Promo price overlap', overriddenBy: 'Sofia Marchetti', overriddenByEmail: EMAIL('Sofia Marchetti'),
   },
   {
@@ -187,11 +189,10 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     reasonCode: 'Rep discretion', overriddenBy: 'Mike Rennick', overriddenByEmail: EMAIL('Mike Rennick'),
   },
   {
-    id: 'OVR-012', orderNumber: 'SO-50511', orderDate: iso(-33), cases: 180,
+    id: 'OVR-012', orderNumber: 'SO-50511', orderDate: iso(-33), cases: 18,
     channel: 'Mining Dealer', customer: 'Great Basin Mining Supply',
-    itemName: 'Rim Clamp Set 25 in', itemNumber: 'HW-CLP-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '6-pc set',
-    unitCost: 14.2, originalPrice: 21.0, overridePrice: 19.0, floorPrice: 18.9,
+    ...wheel('LR-63-HD'),
+    unitCost: LR63.cost, originalPrice: LR63.list, overridePrice: 1940, floorPrice: 1931,
     reasonCode: 'Competitive match', overriddenBy: 'Mike Rennick', overriddenByEmail: EMAIL('Mike Rennick'),
   },
   {
@@ -206,7 +207,7 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-014', orderNumber: 'SO-50447', orderDate: iso(-44), cases: 200,
     channel: 'Fleet Contract', customer: 'Boulder Ridge Mining Co.',
     itemName: 'O-Ring Seal Kit 63 in', itemNumber: 'SK-ORG-63',
-    category: 'Mining OTR', productLine: 'Service kits', pack: '6 O-rings + lube',
+    category: 'Seal kits', productLine: 'Service kits', pack: '6 O-rings + lube',
     unitCost: 22.9, originalPrice: 37.0, overridePrice: 33.0,
     reasonCode: 'Volume deal', overriddenBy: 'Arjun Sandhu', overriddenByEmail: EMAIL('Arjun Sandhu'),
   },
@@ -214,7 +215,7 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-015', orderNumber: 'SO-50435', orderDate: iso(-52), cases: 120,
     channel: 'Mining Dealer', customer: 'Northern Shield Tire & Wheel',
     itemName: 'Lock Ring Pin Set 29 in', itemNumber: 'HW-LRP-29',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '10-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '10-pc set',
     unitCost: 22.8, originalPrice: 33.0, overridePrice: 29.0, floorPrice: 29.7,
     reasonCode: 'Contract price not updated', overriddenBy: 'Mike Rennick', overriddenByEmail: EMAIL('Mike Rennick'),
   },
@@ -222,7 +223,7 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-016', orderNumber: 'SO-50388', orderDate: iso(-61), cases: 96,
     channel: 'Mining Dealer', customer: 'Iron Range OTR Services',
     itemName: 'Hardened Washer Pack 25 in', itemNumber: 'HW-WSH-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '50-pc pack',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '50-pc pack',
     unitCost: 11.9, originalPrice: 16.8, overridePrice: 16.1,
     reasonCode: 'Aged stock / open box', overriddenBy: 'Sofia Marchetti', overriddenByEmail: EMAIL('Sofia Marchetti'),
   },
@@ -230,7 +231,7 @@ const PRICE_OVERRIDES: PriceOverride[] = [
     id: 'OVR-017', orderNumber: 'SO-50342', orderDate: iso(-74), cases: 288,
     channel: 'National Account', customer: 'Westline Equipment Group',
     itemName: 'Rim Bolt Set 25 in', itemNumber: 'HW-BLT-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '16-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '16-pc set',
     unitCost: 13.4, originalPrice: 19.2, overridePrice: 17.28, floorPrice: 17.28,
     reasonCode: 'Volume deal', overriddenBy: 'Claire Fournier', overriddenByEmail: EMAIL('Claire Fournier'),
   },
@@ -257,35 +258,33 @@ const PRICING_SETUP: PricingSetupLine[] = [
   {
     id: 'PRC-RTL-01', mode: 'Retail', channel: 'Mining Dealer', channelDetail: 'Mining dealer price group',
     customerCodes: MINING,
-    itemName: 'TSR Wedge & Bolt Set 57 in', itemNumber: 'HW-WDG-57',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
-    quantity: 480, basePrice: 22.5, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 15.8, floorPrice: 20.25,
+    ...wheel('TSR-57-4000'),
+    quantity: 12, basePrice: T57.list, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: T57.cost, floorPrice: 17676,
     validFrom: iso(-38), validTo: iso(120),
   },
   {
     id: 'PRC-RTL-02', mode: 'Retail', channel: 'National Account', channelDetail: 'Westline Equipment Group',
     customerCodes: ['C10007'],
-    itemName: 'TSR Wedge & Bolt Set 57 in', itemNumber: 'HW-WDG-57',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
-    quantity: 336, basePrice: 22.5, marginComponent: 0, discountPct: 12,
+    ...wheel('TSR-57-4000'),
+    quantity: 8, basePrice: T57.list, marginComponent: 0, discountPct: 12,
     discount: {
       name: 'Fall Fleet Readiness Event', type: 'Threshold', promoId: 'TP-2026-112',
       validFrom: iso(-10), validTo: iso(12),
       tiers: [
-        { label: '1 – 239 units', discountPct: 8 },
-        { label: '240 – 479 units', discountPct: 12 },
-        { label: '480+ units', discountPct: 15 },
+        { label: '1 – 5 units', discountPct: 8 },
+        { label: '6 – 11 units', discountPct: 12 },
+        { label: '12+ units', discountPct: 15 },
       ],
     },
-    autoCharge: 0, unitCost: 15.8, poolSharePct: 8, floorPrice: 20.25, promoUntil: iso(12),
+    autoCharge: 0, unitCost: T57.cost, poolSharePct: 8, floorPrice: 17676, promoUntil: iso(12),
     validFrom: iso(-10), validTo: iso(12),
   },
   {
     id: 'PRC-RTL-03', mode: 'Retail', channel: 'Mining Dealer', channelDetail: 'Mining dealer price group',
     customerCodes: MINING,
     itemName: 'O-Ring Seal Kit 57 in', itemNumber: 'SK-ORG-57',
-    category: 'Mining OTR', productLine: 'Service kits', pack: '6 O-rings + lube',
+    category: 'Seal kits', productLine: 'Service kits', pack: '6 O-rings + lube',
     quantity: 300, basePrice: 27.6, marginComponent: 0, discountPct: 15,
     discount: {
       name: 'Seal Kit Stock-Up Deal', type: 'Quantity', promoId: 'TP-2026-108',
@@ -302,17 +301,16 @@ const PRICING_SETUP: PricingSetupLine[] = [
   {
     id: 'PRC-RTL-04', mode: 'Retail', channel: 'Mining Dealer', channelDetail: 'Mining dealer price group',
     customerCodes: MINING,
-    itemName: 'Rim Clamp Set 25 in', itemNumber: 'HW-CLP-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '6-pc set',
-    quantity: 240, basePrice: 21.0, marginComponent: 0, discountPct: 0,
-    autoCharge: 0, unitCost: 14.2, floorPrice: 18.9,
+    ...wheel('LR-63-HD'),
+    quantity: 24, basePrice: LR63.list, marginComponent: 0, discountPct: 0,
+    autoCharge: 0, unitCost: LR63.cost, floorPrice: 1931,
     validFrom: iso(-20), validTo: iso(90),
   },
   {
     id: 'PRC-RTL-05', mode: 'Retail', channel: 'Online Parts', channelDetail: 'Online parts price group',
     customerCodes: ONLINE,
     itemName: 'Dual-Wheel Clamp Set Ag', itemNumber: 'HW-DCL-AG',
-    category: 'Dual & ag wheels', productLine: 'Wheel hardware', pack: '8-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '8-pc set',
     quantity: 2400, basePrice: 30.0, marginComponent: 0, discountPct: 10,
     discount: {
       name: 'Harvest Service Feature', type: 'Line', promoId: 'TP-2026-115',
@@ -324,16 +322,15 @@ const PRICING_SETUP: PricingSetupLine[] = [
   {
     id: 'PRC-RTL-06', mode: 'Retail', channel: 'Mining Dealer', channelDetail: 'Northern Shield Tire & Wheel · Iron Range OTR Services',
     customerCodes: ['C10002', 'C10003'],
-    itemName: 'Stud & Nut Set 49 in', itemNumber: 'HW-STN-49',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
-    quantity: 9600, basePrice: 18.75, marginComponent: 0, discountPct: 15,
+    ...wheel('TSR-49-3600'),
+    quantity: 40, basePrice: T49.list, marginComponent: 0, discountPct: 15,
     discount: {
       name: 'Iron Range Fall Stocking Program', type: 'Line', promoId: 'TP-2026-104',
       validFrom: iso(-27), validTo: iso(-6),
     },
     // The stocking program closed six days ago and the promo price was never
     // taken off the price group — the dealer side's price-leak finding.
-    autoCharge: 0, unitCost: 13.4, floorPrice: 16.9, promoUntil: iso(-6),
+    autoCharge: 0, unitCost: T49.cost, floorPrice: 11970, promoUntil: iso(-6),
     validFrom: iso(-27), validTo: iso(60),
   },
   {
@@ -358,7 +355,7 @@ const PRICING_SETUP: PricingSetupLine[] = [
     id: 'PRC-RTL-09', mode: 'Retail', channel: 'Ag Dealer', channelDetail: 'Ag dealer price group',
     customerCodes: AG,
     itemName: 'Rim Bolt Set 33 in', itemNumber: 'HW-BLT-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '16-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '16-pc set',
     quantity: 96, basePrice: 30.0, marginComponent: -2.0, discountPct: 0,
     autoCharge: 0, unitCost: 19.6,
     validFrom: iso(-120), validTo: iso(90),
@@ -367,7 +364,7 @@ const PRICING_SETUP: PricingSetupLine[] = [
     id: 'PRC-RTL-10', mode: 'Retail', channel: 'National Account', channelDetail: 'Westline Equipment Group',
     customerCodes: ['C10007'],
     itemName: 'Rim Bolt Set 25 in', itemNumber: 'HW-BLT-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '16-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '16-pc set',
     quantity: 7200, basePrice: 19.2, marginComponent: 0, discountPct: 8,
     discount: {
       name: 'Dealer Pallet Program', type: 'Line', promoId: 'TP-2026-109',
@@ -405,7 +402,7 @@ const PRICING_SETUP: PricingSetupLine[] = [
     channelDetail: 'Boulder Ridge Mining Co.',
     customerAccount: 'C10011', contract: 'FY26 Wheel Service Supply Agreement',
     itemName: 'O-Ring Seal Kit 63 in', itemNumber: 'SK-ORG-63',
-    category: 'Mining OTR', productLine: 'Service kits', pack: '6 O-rings + lube',
+    category: 'Seal kits', productLine: 'Service kits', pack: '6 O-rings + lube',
     quantity: 480, basePrice: 37.0, marginComponent: 0, discountPct: 10,
     discount: {
       name: 'Contract Volume Tier', type: 'Threshold', promoId: 'TP-2026-110',
@@ -433,16 +430,15 @@ const PRICING_SETUP: PricingSetupLine[] = [
     id: 'PRC-FS-03', mode: 'Foodservice', channel: 'Fleet Contract',
     channelDetail: 'Keystone Ridge Copper',
     customerAccount: 'C10012', contract: 'Haul Fleet Wheel Program',
-    itemName: 'TSR Wedge Kit 63 in', itemNumber: 'HW-WDG-63',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '24-pc kit',
-    quantity: 4800, basePrice: 42.0, marginComponent: 0, discountPct: 15,
+    ...wheel('TSR-63-4400'),
+    quantity: 24, basePrice: T63.list, marginComponent: 0, discountPct: 15,
     discount: {
       name: 'Q3 Fleet Rebuild Allowance', type: 'Line', promoId: 'TP-2026-118',
       validFrom: iso(-35), validTo: iso(-9),
     },
     // The fleet-rebuild allowance closed nine days ago and stayed on the
     // contract line — this is the demo's headline price-leak finding.
-    autoCharge: 0, unitCost: 29.3, poolSharePct: 8, floorPrice: 37.8, promoUntil: iso(-9),
+    autoCharge: 0, unitCost: T63.cost, floorPrice: 22388, promoUntil: iso(-9),
     validFrom: iso(-35), validTo: iso(55),
   },
   {
@@ -450,7 +446,7 @@ const PRICING_SETUP: PricingSetupLine[] = [
     channelDetail: 'Tamarack Basin Coal',
     customerAccount: 'C10038', contract: 'Mine Supply Contract',
     itemName: 'Spacer Ring Set 33 in', itemNumber: 'HW-SPC-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '4-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '4-pc set',
     quantity: 5760, basePrice: 19.0, marginComponent: 0, discountPct: 8,
     discount: {
       name: 'Mine Supply Volume Schedule', type: 'Quantity',
@@ -468,21 +464,20 @@ const PRICING_SETUP: PricingSetupLine[] = [
     id: 'PRC-FS-05', mode: 'Foodservice', channel: 'Fleet Contract',
     channelDetail: 'Tamarack Basin Coal',
     customerAccount: 'C10038', contract: 'Mine Supply Contract',
-    itemName: 'Flange Nut Set 33 in', itemNumber: 'HW-NUT-33',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '20-pc set',
-    quantity: 5760, basePrice: 24.0, marginComponent: 0, discountPct: 8,
+    ...wheel('BSB-57'),
+    quantity: 48, basePrice: BSB57.list, marginComponent: 0, discountPct: 8,
     discount: {
       name: 'Mine Supply Volume Schedule', type: 'Quantity',
       validFrom: iso(-150), validTo: iso(30),
       tiers: [
-        { label: '1 – 99 units', discountPct: 0 },
-        { label: '100 – 199 units', discountPct: 5 },
-        { label: '200+ units', discountPct: 8 },
+        { label: '1 – 11 units', discountPct: 0 },
+        { label: '12 – 23 units', discountPct: 5 },
+        { label: '24+ units', discountPct: 8 },
       ],
     },
-    // Bar-stock cost moved with the mill index after the contract was signed;
-    // the floor was raised but the volume schedule was never re-cut against it.
-    autoCharge: 0, unitCost: 17.0, floorPrice: 22.8,
+    // Plate cost moved with the mill index after the contract was signed; the
+    // floor was raised but the volume schedule was never re-cut against it.
+    autoCharge: 0, unitCost: BSB57.cost, floorPrice: 3306,
     validFrom: iso(-150), validTo: iso(30),
   },
   {
@@ -513,19 +508,18 @@ const PRICING_SETUP: PricingSetupLine[] = [
     id: 'PRC-FS-08', mode: 'Foodservice', channel: 'Fleet Contract',
     channelDetail: 'North Shore Aggregates',
     customerAccount: 'C10014', contract: 'Winter Shutdown Program',
-    itemName: 'Rim Clamp Set 25 in', itemNumber: 'HW-CLP-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '6-pc set',
-    quantity: 144, basePrice: 21.0, marginComponent: 0, discountPct: 5,
+    ...wheel('LR-63-HD'),
+    quantity: 36, basePrice: LR63.list, marginComponent: 0, discountPct: 5,
     discount: {
       name: 'Winter Program Schedule', type: 'Quantity',
       validFrom: iso(-20), validTo: iso(150),
       tiers: [
-        { label: '1 – 71 units', discountPct: 0 },
-        { label: '72 – 143 units', discountPct: 3 },
-        { label: '144+ units', discountPct: 5 },
+        { label: '1 – 11 units', discountPct: 0 },
+        { label: '12 – 35 units', discountPct: 3 },
+        { label: '36+ units', discountPct: 5 },
       ],
     },
-    autoCharge: 0, unitCost: 14.2, floorPrice: 18.9,
+    autoCharge: 0, unitCost: LR63.cost, floorPrice: 1931,
     validFrom: iso(-20), validTo: iso(150),
   },
 ]
@@ -538,53 +532,49 @@ const PRICING_SETUP: PricingSetupLine[] = [
 
 const PRICE_HISTORY: PriceHistoryRecord[] = [
   {
-    productKey: 'HW-WDG-63|24-pc kit|LIST',
-    itemName: 'TSR Wedge Kit 63 in', itemNumber: 'HW-WDG-63',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '24-pc kit',
+    productKey: 'TSR-63-4400|assembly|LIST',
+    ...wheel('TSR-63-4400'),
     scopeId: 'LIST', scopeName: 'RIMEX list price',
     entries: [
-      { id: 'PH-1-3', price: 42.0, activeFrom: iso(-38), activeTo: null, changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q4 list — steel surcharge reset off the mill index' },
-      { id: 'PH-1-2', price: 44.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q2 list at peak plate pricing' },
-      { id: 'PH-1-1', price: 39.5, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
+      { id: 'PH-1-3', price: T63.list, activeFrom: iso(-38), activeTo: null, changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q4 list — steel surcharge reset off the mill index' },
+      { id: 'PH-1-2', price: 26355, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q2 list at peak plate pricing' },
+      { id: 'PH-1-1', price: 23395, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'HW-WDG-63|24-pc kit|C10012',
-    itemName: 'TSR Wedge Kit 63 in', itemNumber: 'HW-WDG-63',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '24-pc kit',
+    productKey: 'TSR-63-4400|assembly|C10012',
+    ...wheel('TSR-63-4400'),
     scopeId: 'C10012', scopeName: 'Keystone Ridge Copper · Haul Fleet Wheel Program',
     entries: [
-      { id: 'PH-2-3', price: 35.7, activeFrom: iso(-35), activeTo: null, changedBy: 'Mike Rennick', changeType: 'Trade promotion', note: `Q3 Fleet Rebuild Allowance · 15% — TP-2026-118 ended ${shortDate(iso(-9))}, price never restored to the $37.80 floor` },
-      { id: 'PH-2-2', price: 42.0, activeFrom: iso(-170), activeTo: iso(-36), changedBy: 'Mike Rennick', changeType: 'Contract update', note: 'Contract line matched to list' },
-      { id: 'PH-2-1', price: 40.0, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Program contract signed' },
+      { id: 'PH-2-3', price: 21144.25, activeFrom: iso(-35), activeTo: null, changedBy: 'Mike Rennick', changeType: 'Trade promotion', note: `Q3 Fleet Rebuild Allowance · 15% — TP-2026-118 ended ${shortDate(iso(-9))}, price never restored to the $22,388.00 floor` },
+      { id: 'PH-2-2', price: T63.list, activeFrom: iso(-170), activeTo: iso(-36), changedBy: 'Mike Rennick', changeType: 'Contract update', note: 'Contract line matched to list' },
+      { id: 'PH-2-1', price: 23690, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Program contract signed' },
     ],
   },
   {
-    productKey: 'HW-STN-49|12-pc set|LIST',
-    itemName: 'Stud & Nut Set 49 in', itemNumber: 'HW-STN-49',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
+    productKey: 'TSR-49-3600|assembly|LIST',
+    ...wheel('TSR-49-3600'),
     scopeId: 'LIST', scopeName: 'RIMEX list price',
     entries: [
-      { id: 'PH-3-3', price: 18.75, activeFrom: iso(-38), activeTo: null, changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q4 list off the mill index' },
-      { id: 'PH-3-2', price: 19.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q2 list' },
-      { id: 'PH-3-1', price: 17.95, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
+      { id: 'PH-3-3', price: T49.list, activeFrom: iso(-38), activeTo: null, changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q4 list off the mill index' },
+      { id: 'PH-3-2', price: 13810, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Q2 list' },
+      { id: 'PH-3-1', price: 12715, activeFrom: iso(-400), activeTo: iso(-171), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
-    productKey: 'HW-STN-49|12-pc set|PG-IRON',
-    itemName: 'Stud & Nut Set 49 in', itemNumber: 'HW-STN-49',
-    category: 'Mining OTR', productLine: 'Wheel hardware', pack: '12-pc set',
+    productKey: 'TSR-49-3600|assembly|PG-IRON',
+    ...wheel('TSR-49-3600'),
     scopeId: 'PG-IRON', scopeName: 'Northern Shield Tire & Wheel · Iron Range OTR Services',
     entries: [
-      { id: 'PH-4-3', price: 15.94, activeFrom: iso(-27), activeTo: null, changedBy: 'Mike Rennick', changeType: 'Trade promotion', note: `Iron Range Fall Stocking Program · 15% — TP-2026-104 ended ${shortDate(iso(-6))}, promo price still live` },
-      { id: 'PH-4-2', price: 18.75, activeFrom: iso(-38), activeTo: iso(-28), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Matched to the Q4 list' },
-      { id: 'PH-4-1', price: 19.5, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'System', changeType: 'Initial', note: 'Price group created' },
+      { id: 'PH-4-3', price: 11288, activeFrom: iso(-27), activeTo: null, changedBy: 'Mike Rennick', changeType: 'Trade promotion', note: `Iron Range Fall Stocking Program · 15% — TP-2026-104 ended ${shortDate(iso(-6))}, promo price still live` },
+      { id: 'PH-4-2', price: T49.list, activeFrom: iso(-38), activeTo: iso(-28), changedBy: 'Dana Whitford', changeType: 'List update', note: 'Matched to the Q4 list' },
+      { id: 'PH-4-1', price: 13810, activeFrom: iso(-170), activeTo: iso(-39), changedBy: 'System', changeType: 'Initial', note: 'Price group created' },
     ],
   },
   {
     productKey: 'HW-DCL-AG|8-pc set|LIST',
     itemName: 'Dual-Wheel Clamp Set Ag', itemNumber: 'HW-DCL-AG',
-    category: 'Dual & ag wheels', productLine: 'Wheel hardware', pack: '8-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '8-pc set',
     scopeId: 'LIST', scopeName: 'RIMEX list price',
     entries: [
       { id: 'PH-5-4', price: 30.0, activeFrom: iso(-45), activeTo: null, changedBy: 'Dana Whitford', changeType: 'Season set', note: 'Fall harvest service price' },
@@ -596,7 +586,7 @@ const PRICE_HISTORY: PriceHistoryRecord[] = [
   {
     productKey: 'HW-DCL-AG|8-pc set|PG-WEB',
     itemName: 'Dual-Wheel Clamp Set Ag', itemNumber: 'HW-DCL-AG',
-    category: 'Dual & ag wheels', productLine: 'Wheel hardware', pack: '8-pc set',
+    category: 'Wheel hardware', productLine: WHEELS_LINE, pack: '8-pc set',
     scopeId: 'PG-WEB', scopeName: 'Online parts price group',
     entries: [
       { id: 'PH-6-3', price: 27.0, activeFrom: iso(-12), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Agent reprice', note: 'Harvest Service Feature · 10% — held exactly at the $27.00 floor' },
@@ -605,20 +595,19 @@ const PRICE_HISTORY: PriceHistoryRecord[] = [
     ],
   },
   {
-    productKey: 'HW-CLP-25|6-pc set|LIST',
-    itemName: 'Rim Clamp Set 25 in', itemNumber: 'HW-CLP-25',
-    category: 'Construction', productLine: 'Wheel hardware', pack: '6-pc set',
+    productKey: 'LR-63-HD|each|LIST',
+    ...wheel('LR-63-HD'),
     scopeId: 'LIST', scopeName: 'RIMEX list price',
     entries: [
-      { id: 'PH-7-3', price: 21.0, activeFrom: iso(-20), activeTo: null, changedBy: 'Dana Whitford', changeType: 'Season set', note: 'Pre-winter price — held through year-end fleet rebuilds' },
-      { id: 'PH-7-2', price: 23.5, activeFrom: iso(-230), activeTo: iso(-21), changedBy: 'Dana Whitford', changeType: 'Season set', note: 'Spring construction-ramp price' },
-      { id: 'PH-7-1', price: 21.5, activeFrom: iso(-400), activeTo: iso(-231), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
+      { id: 'PH-7-3', price: LR63.list, activeFrom: iso(-20), activeTo: null, changedBy: 'Dana Whitford', changeType: 'Season set', note: 'Pre-winter price — held through year-end fleet rebuilds' },
+      { id: 'PH-7-2', price: 2400, activeFrom: iso(-230), activeTo: iso(-21), changedBy: 'Dana Whitford', changeType: 'Season set', note: 'Spring construction-ramp price' },
+      { id: 'PH-7-1', price: 2195, activeFrom: iso(-400), activeTo: iso(-231), changedBy: 'System', changeType: 'Initial', note: 'Item introduction' },
     ],
   },
   {
     productKey: 'SK-ORG-57|6 O-rings + lube|LIST',
     itemName: 'O-Ring Seal Kit 57 in', itemNumber: 'SK-ORG-57',
-    category: 'Mining OTR', productLine: 'Service kits', pack: '6 O-rings + lube',
+    category: 'Seal kits', productLine: 'Service kits', pack: '6 O-rings + lube',
     scopeId: 'LIST', scopeName: 'RIMEX list price',
     entries: [
       { id: 'PH-8-3', price: 27.6, activeFrom: iso(-40), activeTo: null, changedBy: 'Pricing Agent', changeType: 'Cost-plus update', note: 'Q4 elastomer compound cost rolled into the kit price' },
@@ -636,17 +625,17 @@ const RECOMMENDATIONS: Recommendation[] = [
   // ── Dealers ──
   {
     id: 'REC-RTL-1', audience: 'Retail', kind: 'Promotion timing',
-    title: 'Put the fall fleet-readiness features on service kits, not on hardware',
+    title: 'Put the fall fleet-readiness features on service kits, not on wheel assemblies',
     detail:
-      'O-ring seal kits still clear 27% margin at 15% off; a 49 in stud & nut set at the same depth lands under 16%. Feature the service kits on price and keep the hardware at list in the program.',
-    bullets: ['Week 1 · 57 in O-ring seal kits at 15% off', 'Week 2 · Seal kit stock-up on the 300-unit tier', 'Hardware stays at list — feature in the program, not on price'],
+      'O-ring seal kits still clear 27% margin at 15% off; a 49" TSR wheel assembly at the same depth lands at 24.5%, under the floor. Feature the service kits on price and keep the assemblies at list in the program.',
+    bullets: ['Week 1 · 57 in O-ring seal kits at 15% off', 'Week 2 · Seal kit stock-up on the 300-unit tier', 'Assemblies stay at list — feature in the program, not on price'],
     impact: '+$84K margin vs. a flat 12% fleet-readiness promotion', confidence: 'High', status: 'Open',
   },
   {
     id: 'REC-RTL-2', audience: 'Retail', kind: 'Hold price',
-    title: 'Hold the 25 in rim clamp set at $21.00 through year-end',
+    title: 'Hold the 63" heavy-duty lock ring at $2,145.00 through year-end',
     detail:
-      'Clamp demand climbs into the winter rebuild season and steel hardware does not age on the shelf, so there is no clock forcing a price move. Cutting now gives away a price the mining dealers are paying.',
+      'Lock-ring demand climbs into the winter rebuild season and steel components do not age on the shelf, so there is no clock forcing a price move. Cutting now gives away a price the mining dealers are paying.',
     impact: 'Protects ~$52K of list-price revenue', confidence: 'High', status: 'Open',
   },
   {
@@ -680,32 +669,32 @@ const RECOMMENDATIONS: Recommendation[] = [
     id: 'REC-FS-1', audience: 'Foodservice', kind: 'Floor compliance',
     title: 'Three lines price below floor with no active promotion',
     detail:
-      'The Keystone Ridge 63 in wedge kit kept its fleet-rebuild allowance nine days after TP-2026-118 closed, the Iron Range stocking price is still live at Northern Shield and Iron Range OTR, and the Tamarack Basin flange-nut schedule was never re-cut against the new floor.',
-    bullets: ['Restore the Keystone Ridge 63 in wedge kit to the $37.80 floor', 'End the Iron Range stocking price or extend TP-2026-104 with approval', 'Re-cut the Tamarack Basin flange-nut volume schedule'],
+      'Keystone Ridge kept its fleet-rebuild allowance on the 63" TSR assembly nine days after TP-2026-118 closed, the Iron Range stocking price on the 49" assembly is still live at Northern Shield and Iron Range OTR, and the Tamarack Basin bead-seat-band schedule was never re-cut against the new $3,306 floor.',
+    bullets: ['Restore the Keystone Ridge TSR-63-4400 line to the $22,388 floor', 'End the Iron Range stocking price or extend TP-2026-104 with approval', 'Re-cut the Tamarack Basin bead-seat-band volume schedule'],
     impact: 'Clears 3 open price leaks', confidence: 'High', status: 'Open',
   },
   {
     id: 'REC-FS-2', audience: 'Foodservice', kind: 'Contract terms',
     title: 'Index the Tamarack Basin supply contract to the mill',
     detail:
-      'Spacer-ring and flange-nut costs rose with plate and bar after the contract was signed and the fixed volume schedule did not move with them, which is why both lines now sit under 25%. A quarterly mill-index clause keeps the discount and the margin.',
+      'Bead-seat-band and spacer-ring costs rose with plate after the contract was signed and the fixed volume schedule did not move with them, which is why both lines now sit under 25%. A quarterly mill-index clause keeps the discount and the margin.',
     impact: '+$67K if the contract reprices quarterly to cost', confidence: 'Medium', status: 'Open',
   },
   {
     id: 'REC-FS-3', audience: 'Foodservice', kind: 'Margin protection',
-    title: 'Keystone Ridge wedge kit earns 24.5% at 15% off — under the floor even with the mill share',
+    title: 'Keystone Ridge 63" TSR assembly earns 24.8% on an allowance that has already expired',
     detail:
-      'Without the 8% mill program share the line would be at 17.9%. Rather than deepen the allowance, restore the floor and fund a smaller, dated promotion.',
-    bullets: ['Restore to the $37.80 floor and close the expired allowance', 'Counter with a 7% dated allowance through the next rebuild cycle'],
-    impact: '+$10K margin across the 4,800-unit program', confidence: 'High', status: 'Open',
+      'The 15% Q3 fleet-rebuild allowance takes the $24,875.59 list to $21,144.25 — under the floor and under 25%. Rather than leave it, restore the floor and fund a smaller, dated promotion.',
+    bullets: ['Restore to the $22,388 floor and close the expired allowance', 'Counter with a 7% dated allowance through the next rebuild cycle (31.3% margin)'],
+    impact: '+$30K margin across the 24-assembly program', confidence: 'High', status: 'Open',
   },
   {
     id: 'REC-FS-4', audience: 'Foodservice', kind: 'Product mix',
-    title: 'Move haul-fleet volume toward O-ring service kits',
+    title: 'Attach O-ring service kits to the Keystone Ridge assembly program',
     detail:
-      'Loose 63 in wedge kits list at 30% margin and carry a floor; 63 in O-ring seal kits run 38% and absorb contract tiers. Offer Keystone Ridge the seal kit for its scheduled tire-change program.',
-    bullets: ['Propose a 60/40 wedge kit / seal kit split on the winter contract'],
-    impact: '+5.4 pts blended margin on haul-fleet hardware', confidence: 'Medium', status: 'Open',
+      'Every TSR assembly change-out needs a seal kit. The 63 in O-ring seal kit runs 38% and absorbs contract tiers, so quoting one with each assembly lifts the program margin without touching the assembly price.',
+    bullets: ['Add SK-ORG-63 at contract price to each TSR-63-4400 line on the winter contract'],
+    impact: '+2.1 pts blended margin on the haul-fleet program', confidence: 'Medium', status: 'Open',
   },
 ]
 
@@ -735,9 +724,9 @@ const FOODSERVICE_KPIS: KpiMonitor[] = [
 
 // category list for filters
 const CATEGORIES = [
-  'Mining OTR',
-  'Dual & ag wheels',
-  'Construction',
+  'Wheel assemblies',
+  'Rim components',
+  'Wheel hardware',
   'Seal kits',
   'Valve & inflation',
   'Rebuild kits',
@@ -771,9 +760,9 @@ const SEASON_CURVES = {
  * inventory-driven recommendation land the same way.
  */
 const ITEM_PROFILE: Record<string, ItemProfile> = {
-  'HW-WDG-57': { base: 14, season: 'mining', coverDays: 10, shelfLifeDays: 45 },
-  'HW-STN-49': { base: 11, season: 'mining', coverDays: 14, shelfLifeDays: 45 },
-  'HW-CLP-25': { base: 6, season: 'shutdown', coverDays: 12, shelfLifeDays: 60 },
+  'TSR-57-4000': { base: 0.5, season: 'mining', coverDays: 10, shelfLifeDays: 45 },
+  'TSR-49-3600': { base: 0.6, season: 'mining', coverDays: 14, shelfLifeDays: 45 },
+  'LR-63-HD': { base: 1.5, season: 'shutdown', coverDays: 12, shelfLifeDays: 60 },
   'HW-DCL-AG': { base: 5, season: 'ag', coverDays: 9, shelfLifeDays: 12 },
   'HW-BLT-25': { base: 7, season: 'construction', coverDays: 8, shelfLifeDays: 12 },
   'HW-BLT-33': { base: 4, season: 'construction', coverDays: 3, shelfLifeDays: 10 },
@@ -802,6 +791,33 @@ const CUSTOMER_WEIGHT: Record<string, number> = {
 /** Day-of-week factor: branches ship on weekdays. Sun..Sat. */
 const DOW_FACTOR = [0.25, 1.2, 1.25, 1.2, 1.25, 1.15, 0.45]
 
+
+/**
+ * Wheels and rim components must show the item master's cost everywhere, and
+ * list-price scopes must show its list price. Fails the build's first render
+ * loudly rather than letting two pages disagree.
+ */
+function assertMasterConsistency() {
+  const problems: string[] = []
+  for (const l of [...PRICE_OVERRIDES, ...PRICING_SETUP]) {
+    const m = MASTER[l.itemNumber]
+    if (m && l.unitCost !== m.cost) problems.push(`${l.itemNumber}: unitCost ${l.unitCost} ≠ master ${m.cost}`)
+    if (m && l.itemName !== m.name) problems.push(`${l.itemNumber}: name drift`)
+  }
+  for (const h of PRICE_HISTORY) {
+    const m = MASTER[h.itemNumber]
+    const current = h.entries.find((e) => e.activeTo === null)
+    if (m && h.scopeId === 'LIST' && current && current.price !== m.list) {
+      problems.push(`${h.itemNumber}: current list ${current.price} ≠ master ${m.list}`)
+    }
+  }
+  for (const i of simulator.items) {
+    const m = MASTER[i.itemNumber]
+    if (m && (i.basePrice !== m.list || i.unitCost !== m.cost)) problems.push(`${i.itemNumber}: simulator drift`)
+  }
+  if (problems.length) throw new Error('RIMEX item master drift:\n' + problems.join('\n'))
+}
+assertMasterConsistency()
 
 export const data: ScenarioData = {
   customers: CUSTOMERS,
