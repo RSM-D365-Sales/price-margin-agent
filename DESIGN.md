@@ -136,7 +136,8 @@ number the grid shows.
 
 ## 5. The dataset
 
-`src/data/mockData.ts` is the single source of truth. Every figure is
+`src/scenarios/bluestem/data.ts` is the single source of truth (shared
+generator and reconciliation logic live in `src/data/mockData.ts`). Every figure is
 synthetic and hand-built to tie out:
 
 - **20 active pricing setup lines** (12 retail, 8 foodservice). At the 25%
@@ -175,7 +176,7 @@ runtime, so the numbers can be defended live if someone interrogates them.
 
 ### Dates
 
-Every date derives from a single `AS_OF` constant in `src/lib/config.ts`. Order
+Every date derives from a single `AS_OF` constant in `src/scenarios/bluestem/config.ts`. Order
 dates, price validity windows, promotion windows and price history are all
 expressed as `iso(±n)` offsets from it. Nothing is hardcoded to a calendar date,
 so a demo reused weeks later does not show stale windows — move `AS_OF` and the
@@ -235,15 +236,17 @@ The brand guide's header also lists a site selector (GRP / HRT / HOL / SAL).
 It is deliberately omitted here: pricing is keyed on customers and contracts,
 not on the ship-from site, and a selector that changes nothing is a decoy.
 
-The favicon is `public/favicon.png` (`favicon_64.png` from the brand zip). The
-lockup component is `src/components/BluestemLogo.tsx`.
+The favicon is `src/scenarios/bluestem/public/favicon.png` (`favicon_64.png`
+from the brand zip). The lockup component is `src/scenarios/bluestem/Logo.tsx`.
 
 ## 7. Running it
 
 ```
 npm install
 npm run dev        # vite dev server
-npm run build      # tsc && vite build -> dist/
+npm run build      # tsc && vite build -> dist/          (Bluestem)
+npm run build:rimex   # tsc && vite build --mode rimex -> dist-rimex/
+npm run preview:rimex # serve the RIMEX build
 ```
 
 Deploys to Cloudflare Pages (project `price-margin-agent`) via
@@ -258,16 +261,56 @@ screenshotted, serve a production build (`npm run build`, then
 The IFPA booth kit (tour video, title card, reel, voice-over script and
 presenter cheat sheet) lives in `demo-kit/` — see `demo-kit/README.md`.
 
-## 8. Retargeting to another prospect
+## 8. Scenarios and retargeting
 
-1. Edit `BRAND` and `AS_OF` in `src/lib/config.ts`.
-2. Replace the items, customers and contracts in `src/data/mockData.ts`,
+Everything company-specific lives in a scenario folder under
+`src/scenarios/<key>/` — `config.ts` (brand, persona, `AS_OF`, season
+calendar, product-line names), `copy.ts` (every UI string that names the
+industry), `data.ts` (the dataset), `Logo.tsx`, `theme.css` (token
+overrides), `meta.ts` (HTML title, theme colour, favicon) and `public/`.
+`vite.config.ts` aliases `@scenario` to exactly one folder per build, so a
+prospect's bundle never contains another company's data. The contract is
+`src/scenarios/types.ts`; `tsc` fails if a scenario misses a field.
+
+| Scenario | Build | Who it is for |
+|---|---|---|
+| `bluestem` (default) | `npm run build` → `dist/` | IFPA show circuit; what `main` / production serve |
+| `rimex` | `npm run build:rimex` → `dist-rimex/` | RIMEX (rimex.com) — wheels & rims |
+
+**RIMEX** is a rename, not a re-tune: every price, cost, floor, discount,
+quantity and date offset is the Bluestem number, so the beats are identical
+(6 of 20 lines fail 25%, all hardware; 3 below floor with no promo; headline
+leak is the Keystone Ridge 63 in wedge kit, allowance TP-2026-118 nine days
+past its window). Mapping:
+
+| Bluestem | RIMEX |
+|---|---|
+| Fresh-cut (`FC-*`) / packed fresh (`PK-*`) | Service kits (`SK-*`) / wheel hardware (`HW-*`) |
+| Retail customers (grocery, club, natural, e-com) | Dealers (mining, national accounts, ag, online parts) |
+| Foodservice contracts | Fleet contracts (mine sites, quarries, haulage, earthworks) |
+| Grower pool share | Mill program share (steel mill funds part of a promo on hardware) |
+| Days of cover vs shelf life | Days of cover vs days left in the selling window |
+| Blueberries 9 d cover / 12 d life | Ag dual-wheel clamps 9 d cover / 12 d left in harvest window |
+| Cases | Units |
+
+RIMEX is only the tenant; every dealer, fleet customer, contract, rep and the
+signed-in persona are fictional. The wordmark is typeset text beside a generic
+wheel glyph, not RIMEX's logo artwork — drop in their SVG in
+`src/scenarios/rimex/Logo.tsx` if they supply one. `AS_OF` is 2026-11-03;
+move it in `src/scenarios/rimex/config.ts` before the meeting.
+
+To add a prospect: copy `src/scenarios/rimex/`, then
+
+1. Edit `BRAND`, `AS_OF`, `seasonOf` and `LINES` in `config.ts`, and every
+   string in `copy.ts`.
+2. Replace the items, customers and contracts in `data.ts`,
    keeping the failing/passing ratio roughly where it is — about 30% of lines
    failing reads as insightful; a book that is mostly red reads as alarmist.
    If the new domain has no shelf life, `ITEM_PROFILE.coverDays` and the
    Price Updates cover column are the only places that assume one.
-3. Adjust the palette in `src/styles/theme.css` if the new brand needs it.
-4. `npm run build`, then check the Setup page's reconciliation block ties out.
+3. Retint the tokens in the scenario's `theme.css`; register the key in
+   `vite.config.ts` and add `dev:/build:/preview:<key>` scripts.
+4. `npm run build:<key>`, then check the Setup page's reconciliation block ties out.
 5. Update `demo-kit/scenes.mjs` so the tour captions and voice-over still name
    real figures, then re-record (`node demo-kit/record.mjs`).
 

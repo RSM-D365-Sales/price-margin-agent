@@ -22,7 +22,7 @@ import {
   type VelocityBasis,
 } from '../models/types'
 import { money, pct, num, shortDate } from '../lib/format'
-import { AS_OF, iso } from '../lib/config'
+import { AS_OF, COPY, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { RepriceModal } from '../components/RepriceModal'
@@ -38,9 +38,9 @@ const RANK_LABELS: Record<RankBy, string> = {
 }
 
 const VELOCITY_LABELS: Record<VelocityBasis, string> = {
-  day: 'cases / day',
-  week: 'cases / week',
-  month: 'cases / month',
+  day: `${COPY.units.plural} / day`,
+  week: `${COPY.units.plural} / week`,
+  month: `${COPY.units.plural} / month`,
 }
 
 /** A pricing line joined to how it actually shipped to the selected customers. */
@@ -172,10 +172,7 @@ export function PriceUpdates() {
         <div className="eyebrow">Performance-led repricing</div>
         <h1>Price Updates</h1>
         <p className="lede">
-          Rank the retail book by how it is actually shipping — case velocity, sell-through, and days
-          of cover against shelf life — then push a price change to the customers you choose. The
-          Margin Threshold Test asks which prices are too thin; this asks which prices the movement
-          says are wrong.
+          {COPY.priceUpdates.lede}
         </p>
       </header>
 
@@ -224,13 +221,13 @@ export function PriceUpdates() {
           <input
             className="input"
             style={{ width: 150 }}
-            placeholder="e.g. PK-BLU-PINT"
+            placeholder={COPY.priceUpdates.itemPlaceholder}
             value={itemQuery}
             onChange={(e) => setItemQuery(e.target.value)}
           />
         </div>
         <div className="field">
-          <label>Cases per</label>
+          <label>{COPY.units.pluralTitle} per</label>
           <select
             className="select"
             value={basis}
@@ -304,9 +301,9 @@ export function PriceUpdates() {
           <Kpi
             label="Sell-through rate"
             value={pct(kpis.sellThrough)}
-            sub="cases shipped ÷ cases available"
+            sub={`${COPY.units.plural} shipped ÷ ${COPY.units.plural} available`}
           />
-          <Kpi label="Cases shipped" value={num(kpis.unitsSold)} sub={`${shortDate(fromDate)} – ${shortDate(toDate)}`} />
+          <Kpi label={`${COPY.units.pluralTitle} shipped`} value={num(kpis.unitsSold)} sub={`${shortDate(fromDate)} – ${shortDate(toDate)}`} />
           <Kpi
             label="Customers in scope"
             value={`${inScope.size} / ${LOCATIONS.length}`}
@@ -318,7 +315,7 @@ export function PriceUpdates() {
           <span className="callout-glyph" aria-hidden="true">
             ⚠
           </span>
-          <span>No retail price lines match these filters — widen the customer selection or clear the item number.</span>
+          <span>No {COPY.modes.Retail.lower} price lines match these filters — widen the customer selection or clear the item number.</span>
         </div>
       )}
 
@@ -394,8 +391,9 @@ export function PriceUpdates() {
               const st = sellThroughPct(perf)
               const vel = salesVelocity(perf, basis)
               const cover = coverDaysFor(l.itemNumber, locations)
-              // Cover only means something next to shelf life: 9 days is
-              // nothing for squash and most of the life of a blueberry.
+              // Cover only means something next to the item's life (shelf
+              // life, season window): 9 days is nothing on a 60-day item and
+              // most of the life of a 12-day one.
               const life = shelfLifeFor(l.itemNumber)
               const lifeUsed = life && Number.isFinite(cover) ? cover / life : 0
               const breach = lineBreachesFloor(l, AS_OF)
@@ -465,7 +463,7 @@ export function PriceUpdates() {
                       {Number.isFinite(cover) ? `${Math.round(cover)} days` : '—'}
                     </span>
                     {life && (
-                      <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>of {life}-day life</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-400)' }}>{COPY.lifeSuffix(life)}</div>
                     )}
                   </td>
                   <td className={`num ${m <= marginFilter && marginFilter < 100 ? 'margin-red' : 'margin-ok'}`}>
@@ -477,7 +475,7 @@ export function PriceUpdates() {
             {ranked.length === 0 && (
               <tr>
                 <td colSpan={15} style={{ textAlign: 'center', color: 'var(--ink-400)', padding: 32 }}>
-                  No retail pricing matches these filters.
+                  No {COPY.modes.Retail.lower} pricing matches these filters.
                 </td>
               </tr>
             )}

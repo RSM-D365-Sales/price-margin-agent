@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { reconciliation } from '../data/mockData'
 import {
   BRAND,
+  COPY,
+  SCENARIO_KEY,
   DEFAULT_RETAIL_MARGIN_TARGET,
   DEFAULT_FOODSERVICE_MARGIN_FLOOR,
 } from '../lib/config'
@@ -31,7 +33,7 @@ export function Setup() {
           <h3>D365 connection</h3>
           <div className="field">
             <label>Environment URL</label>
-            <input className="input" placeholder="https://bluestem-prod.operations.dynamics.com" />
+            <input className="input" placeholder={BRAND.d365UrlPlaceholder} />
           </div>
           <div className="field">
             <label>Legal entity</label>
@@ -70,7 +72,7 @@ export function Setup() {
             />
           </div>
           <div className="field">
-            <label>Foodservice contract minimum margin % (VP Sales approval)</label>
+            <label>{COPY.setup.foodserviceFloorLabel}</label>
             <input
               type="number"
               className="input"
@@ -159,7 +161,7 @@ export function Setup() {
           </table>
           <p style={{ margin: '14px 0 0', fontSize: 12.5, color: 'var(--ink-500)', lineHeight: 1.6 }}>
             Every date in the dataset is derived from a single as-of value in{' '}
-            <span className="mono">src/lib/config.ts</span>. Moving that one constant slides the
+            <span className="mono">src/scenarios/{SCENARIO_KEY}/config.ts</span>. Moving that one constant slides the
             whole book — order dates, price windows, and trade-promotion windows — so the demo
             never shows stale dates.
           </p>

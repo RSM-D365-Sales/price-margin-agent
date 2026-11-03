@@ -1,0 +1,78 @@
+/* ── RIMEX theme ───────────────────────────────────────────────────────
+   Retints the base tokens in src/styles/theme.css: charcoal chrome where
+   Bluestem has Midnight, RIMEX teal (#0095A1, from rimex.com via the earlier
+   Make-Buy RIMEX build) where Bluestem has RSM Blue. Status colours (green /
+   amber / red) are left alone — they are semantic, not brand.
+
+   This file is imported before the base stylesheet, so every rule carries
+   extra specificity (:root:root, html .x) to win without !important. */
+
+:root:root {
+  /* charcoal · chrome, headings, dark surfaces (in the midnight slots) */
+  --midnight-950: #0b0e0f;
+  --midnight-900: #14181a;
+  --midnight-800: #1f2528;
+  --midnight-700: #2b3337;
+  --midnight-100: #d9dee0;
+  --midnight-50: #eef1f2;
+
+  /* teal · actions, links, active nav (in the blue slots) */
+  --blue-800: #00525a;
+  --blue-700: #00666f;
+  --blue-600: #007a84; /* teal deepened for AA text on white (≈5:1) */
+  --blue-500: #0095a1; /* RIMEX teal */
+  --blue-300: #66bfc7;
+  --blue-200: #b3dfe3;
+  --blue-100: #e5f4f5;
+  --blue-50: #f2fafa;
+
+  --shadow: 0 1px 2px rgba(20, 24, 26, 0.05), 0 1px 4px rgba(20, 24, 26, 0.06);
+  --shadow-lg: 0 12px 32px -12px rgba(20, 24, 26, 0.3);
+}
+
+/* Neutral greys on the charcoal chrome (the base uses Midnight-tinted ones). */
+html .ribbon-meta,
+html .sponsor-label,
+html .persona-title,
+html .nav-link {
+  color: #c9cfd1;
+}
+html .nav-link .glyph,
+html .nav-foot {
+  color: #8f989b;
+}
+html .nav-foot .mode {
+  color: #a9b2b5;
+}
+
+/* ═══ RIMEX wordmark ═══ */
+.rimex-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  flex: none;
+}
+.rimex-mark {
+  flex: none;
+  display: block;
+}
+.rimex-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.rimex-wordmark {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+.rimex-descriptor {
+  font-family: var(--font-head);
+  font-weight: 500;
+  font-size: 0.3em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-top: 0.2em;
+}

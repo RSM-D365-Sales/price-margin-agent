@@ -10,7 +10,7 @@ import {
   lineBreachesFloor,
 } from '../models/types'
 import { money0, num, pct, shortDate } from '../lib/format'
-import { AS_OF, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
+import { AS_OF, COPY, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, LINES, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 
 const CARDS = [
@@ -24,25 +24,25 @@ const CARDS = [
     to: '/threshold-test',
     glyph: '◮',
     title: 'Margin Threshold Test',
-    body: 'Find all pricing setup at or below a margin % across retail price groups and foodservice contracts — then let the agent draft new prices, uplifts, or discounts.',
+    body: COPY.overview.thresholdCard,
   },
   {
     to: '/price-updates',
     glyph: '↗',
     title: 'Price Updates',
-    body: 'Rank the retail book by case velocity, sell-through and days of cover, then roll a price change out to chosen customers or a segment — solved to a margin, or as a flat % move.',
+    body: COPY.overview.priceUpdatesCard,
   },
   {
     to: '/price-history',
     glyph: '⧖',
     title: 'Price History',
-    body: 'Audit report for one item and one price scope: Bluestem list, a customer price group, or one contract line — every change and the window it was live for.',
+    body: COPY.overview.historyCard,
   },
   {
     to: '/recommendations',
     glyph: '✦',
     title: 'AI Recommendations',
-    body: 'Promotion timing, price holds and increases, short-life inventory, and foodservice contract guidance — grounded in the KPIs the agent monitors.',
+    body: COPY.overview.recsCard,
   },
 ]
 
@@ -71,11 +71,11 @@ export function Overview() {
     }
     const cats = [...byCat.entries()].sort((a, b) => b[1] - a[1])
 
-    // Blended margin, fresh-cut vs packed fresh — the core economics of the book.
+    // Blended margin, premium vs commodity line — the core economics of the book.
     const avg = (ls: typeof PRICING_SETUP) =>
       ls.length ? ls.reduce((s, l) => s + lineMarginPct(l), 0) / ls.length : 0
-    const freshCut = avg(PRICING_SETUP.filter((l) => l.productLine === 'Fresh-cut'))
-    const packed = avg(PRICING_SETUP.filter((l) => l.productLine === 'Packed fresh'))
+    const freshCut = avg(PRICING_SETUP.filter((l) => l.productLine === LINES.premium))
+    const packed = avg(PRICING_SETUP.filter((l) => l.productLine === LINES.commodity))
 
     return {
       overrides30: overrides30.length,
@@ -100,10 +100,7 @@ export function Overview() {
         </div>
         <h1>Pricing &amp; Margin Workspace</h1>
         <p className="lede">
-          One place to audit order-line price overrides, stress-test discount thresholds, trace price
-          history, and act on pricing guidance — across {CUSTOMERS.length} retail customers and{' '}
-          {FOODSERVICE_CONTRACTS.length} foodservice contracts, packed and shipped out of Grand
-          Rapids, Hart and Holland.
+          {COPY.overview.lede(CUSTOMERS.length, FOODSERVICE_CONTRACTS.length)}
         </p>
       </header>
 
@@ -144,7 +141,7 @@ export function Overview() {
           tone={stats.breaches ? 'red' : 'sage'}
           sub="promo prices that outlived their window"
         />
-        <Kpi label="Open recommendations" value={num(stats.openRecs)} sub="retail + foodservice agents" />
+        <Kpi label="Open recommendations" value={num(stats.openRecs)} sub={COPY.overview.recsKpiSub} />
         <Kpi
           label="Margin at risk"
           value={money0(stats.atRisk)}
@@ -186,12 +183,9 @@ export function Overview() {
               alignItems: 'center',
             }}
           >
-            <span className="pill grey">Fresh-cut · {pct(stats.freshCut)} avg margin</span>
-            <span className="pill midnight">Packed fresh · {pct(stats.packed)} avg margin</span>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-500)' }}>
-              Fresh-cut absorbs a 15% promotion and still clears the floor. Packed fresh does not — a
-              routine 10% deal takes it under, which is why every failing line is packed fresh.
-            </span>
+            <span className="pill grey">{LINES.premium} · {pct(stats.freshCut)} avg margin</span>
+            <span className="pill midnight">{LINES.commodity} · {pct(stats.packed)} avg margin</span>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-500)' }}>{COPY.overview.linesNote}</span>
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { PRICE_OVERRIDES } from '../data/mockData'
 import { overrideMarginPct, overrideBreachesFloor, type PriceOverride } from '../models/types'
 import { money, pct, num, shortDate, isoDaysAgo, isoToday } from '../lib/format'
-import { DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
+import { COPY, DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/useToast'
@@ -58,9 +58,7 @@ export function Overrides() {
         <div className="eyebrow">Audit trail · Sales-order line price overrides</div>
         <h1>Override Audit</h1>
         <p className="lede">
-          Every sales-order line where a rep typed over the system price, across retail and
-          foodservice. Filtered to margins at or below your threshold, ranked lowest margin first.
-          Packed-fresh items in a price group also show whether the override went under the floor.
+          {COPY.overrides.lede}
         </p>
       </header>
 
@@ -86,7 +84,7 @@ export function Overrides() {
         <Kpi
           label="Price given up"
           value={money(kpis.givenUp, { decimals: 0 })}
-          sub="(original − override) × cases"
+          sub={`(original − override) × ${COPY.units.plural}`}
         />
       </div>
 
@@ -158,7 +156,7 @@ export function Overrides() {
                   <td className="style-cell">
                     <div className="style-name">{o.itemName}</div>
                     <div className="style-sub">
-                      {o.orderNumber} · {o.customer} · {num(o.cases)} cs · {shortDate(o.orderDate)}
+                      {o.orderNumber} · {o.customer} · {num(o.cases)} {COPY.units.abbr} · {shortDate(o.orderDate)}
                     </div>
                   </td>
                   <td className="item-code">{o.itemNumber}</td>
@@ -245,7 +243,7 @@ export function Overrides() {
             <dt>Order</dt>
             <dd>
               {action.row.orderNumber} · {shortDate(action.row.orderDate)} · {action.row.channel} ·{' '}
-              {action.row.customer} · {num(action.row.cases)} cases
+              {action.row.customer} · {num(action.row.cases)} {COPY.units.plural}
             </dd>
             <dt>Product</dt>
             <dd>

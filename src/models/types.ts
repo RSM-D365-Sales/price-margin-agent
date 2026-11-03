@@ -1,39 +1,34 @@
 // ── Pricing & Margin Workspace · domain types ────────────────────────────
-// Bluestem is a grower-packer-shipper. Two pricing modes:
-//   Retail      — grocery, club & mass, natural and e-commerce customers,
-//                 priced through customer price groups and trade promotions.
-//   Foodservice — distributor, restaurant-chain and processor contracts. The
-//                 price is a negotiated contract line; margin is a term of the
-//                 contract, not a weekly decision.
+// Two pricing modes, shared by every scenario (src/scenarios/):
+//   Retail      — the price-group book: customers priced through customer
+//                 price groups and trade promotions.
+//   Foodservice — the contract book: the price is a negotiated contract line;
+//                 margin is a term of the contract, not a weekly decision.
+// 'Retail' and 'Foodservice' are internal keys. What the UI calls them
+// (retail / foodservice for Bluestem, dealer / fleet for RIMEX) comes from
+// the scenario's copy.modes.
 
-export type ProductCategory =
-  | 'Apples'
-  | 'Berries'
-  | 'Vegetables'
-  | 'Salads'
-  | 'Vegetable Blends'
-  | 'Fruit Cups & Trays'
+/** Category node — the scenario's `categories` list defines the values. */
+export type ProductCategory = string
 
-export type Channel = 'Grocery' | 'Club & Mass' | 'Natural' | 'E-commerce' | 'Foodservice Contract'
+/** Sales channel — scenario-defined (Grocery, Mining Dealer, …). */
+export type Channel = string
 
 export type PricingMode = 'Retail' | 'Foodservice'
 
 /**
- * Packed fresh (PK-*) is whole produce in a pouch, clamshell or carton — near
- * commodity, ~30% list margin. Fresh-cut (FC-*) is value-added at the Grand
- * Rapids plant and carries ~40%.
+ * Either the scenario's lines.premium (value-added, ~40% list margin, absorbs
+ * a promotion) or lines.commodity (~30%, a routine deal crosses the floor).
  */
-export type ProductLine = 'Packed fresh' | 'Fresh-cut'
+export type ProductLine = string
 
 // ═══ Price override audit ═══════════════════════════════════════════════
 
-export type OverrideReasonCode =
-  | 'Competitive match'
-  | 'Quality / short-dated'
-  | 'Volume deal'
-  | 'Rep discretion'
-  | 'Promo price overlap'
-  | 'Contract price not updated'
+/**
+ * Why the rep overrode the price. Scenario-defined (Competitive match, Volume
+ * deal, Promo price overlap, Contract price not updated, …).
+ */
+export type OverrideReasonCode = string
 
 /** A sales-order line whose price was manually overridden. */
 export interface PriceOverride {
@@ -116,10 +111,10 @@ export interface PricingSetupLine {
   autoCharge: number // $ per case (freight / fuel surcharge)
   unitCost: number // standard cost per case
   /**
-   * Grower pool share as a % of cost. On pooled fruit (apples, blueberries)
-   * the grower pool carries part of a promotional price, so the margin
-   * Bluestem actually earns is measured against a reduced effective cost —
-   * see lineEffectiveCost.
+   * Cost share as a % of cost carried by a third party on a promotional price
+   * (Bluestem: the grower pool on pooled fruit; RIMEX: the steel mill's
+   * program on steel hardware), so the margin actually earned is measured
+   * against a reduced effective cost — see lineEffectiveCost.
    */
   poolSharePct?: number
   /** Lowest price the customer's price group allows without a trade promotion. */
@@ -182,19 +177,14 @@ export interface PriceHistoryEntry {
   activeFrom: string
   activeTo: string | null // null = open-ended / current
   changedBy: string
-  changeType:
-    | 'Initial'
-    | 'Season set'
-    | 'Trade promotion'
-    | 'Contract update'
-    | 'Cost-plus update'
-    | 'Agent reprice'
+  /** Initial, Season set, Trade promotion, Contract update, Cost-plus update, Agent reprice, … */
+  changeType: string
   note?: string
 }
 
 /**
- * A price scope is whatever the price is set against: Bluestem's list price,
- * a customer price group, or one customer's contract.
+ * A price scope is whatever the price is set against: the company's list
+ * price, a customer price group, or one customer's contract.
  */
 export interface PriceHistoryRecord {
   productKey: string // itemNumber + pack + scope

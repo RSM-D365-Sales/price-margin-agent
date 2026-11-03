@@ -10,7 +10,7 @@ import {
   type PricingMode,
 } from '../models/types'
 import { money, pct, num, shortDate } from '../lib/format'
-import { AS_OF, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
+import { AS_OF, COPY, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { RepriceModal } from '../components/RepriceModal'
@@ -95,9 +95,8 @@ export function ThresholdTest() {
         <h1>Margin Threshold Test</h1>
         <p className="lede">
           A price simulator tests one line at a time. This finds <em>all</em> pricing setup at or
-          below a margin % across a date range — customer price groups and trade promotions on the
-          retail side, contract lines with their floors and grower pool share on the foodservice
-          side. Select lines and let the agent draft a new price.
+          below a margin % across a date range — {COPY.threshold.lede}. Select lines and let the
+          agent draft a new price.
         </p>
       </header>
 
@@ -160,8 +159,8 @@ export function ThresholdTest() {
           tone={worstMargin !== null && worstMargin < 20 ? 'red' : 'default'}
           sub={results.length ? results[0].itemName : 'no failures'}
         />
-        <Kpi label="Retail failures" value={num(retailCount)} sub="price groups + promotions" />
-        <Kpi label="Foodservice failures" value={num(foodserviceCount)} sub="contract lines" />
+        <Kpi label={`${COPY.modes.Retail.label} failures`} value={num(retailCount)} sub="price groups + promotions" />
+        <Kpi label={`${COPY.modes.Foodservice.label} failures`} value={num(foodserviceCount)} sub="contract lines" />
         <Kpi
           label="Below floor, no promo"
           value={num(breaches.length)}
@@ -177,7 +176,7 @@ export function ThresholdTest() {
           </span>
           <span>
             <b>
-              {breachesInMode.length} {mode.toLowerCase()} line
+              {breachesInMode.length} {COPY.modes[mode].lower} line
               {breachesInMode.length === 1 ? '' : 's'} price below floor with no active trade
               promotion:
             </b>{' '}
@@ -198,13 +197,13 @@ export function ThresholdTest() {
           className={`tab${mode === 'Retail' ? ' active' : ''}`}
           onClick={() => setMode('Retail')}
         >
-          Retail · Grocery, Club &amp; E-commerce<span className="count">{retailCount}</span>
+          {COPY.modes.Retail.tab}<span className="count">{retailCount}</span>
         </button>
         <button
           className={`tab${mode === 'Foodservice' ? ' active' : ''}`}
           onClick={() => setMode('Foodservice')}
         >
-          Foodservice · Contracts<span className="count">{foodserviceCount}</span>
+          {COPY.modes.Foodservice.tab}<span className="count">{foodserviceCount}</span>
         </button>
       </div>
 
@@ -224,7 +223,7 @@ export function ThresholdTest() {
               <th>Item</th>
               <th>Category</th>
               <th>Pack</th>
-              {mode === 'Foodservice' ? <th>Customer / Contract</th> : <th>Channel</th>}
+              {mode === 'Foodservice' ? <th>{COPY.threshold.contractHeader}</th> : <th>Channel</th>}
               <th className="num">Qty</th>
               <th className="num">Base price (TA)</th>
               <th className="num">Margin comp.</th>
@@ -320,7 +319,7 @@ export function ThresholdTest() {
                     {pct(m)}
                     {pooled && (
                       <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--ink-400)' }}>
-                        {pct(lineUnpooledMarginPct(l))} unpooled
+                        {pct(lineUnpooledMarginPct(l))} {COPY.pool.withoutShare}
                       </div>
                     )}
                   </td>
@@ -330,7 +329,7 @@ export function ThresholdTest() {
             {results.length === 0 && (
               <tr>
                 <td colSpan={14} style={{ textAlign: 'center', color: 'var(--ink-400)', padding: 32 }}>
-                  No {mode.toLowerCase()} pricing at or below {marginTarget}% margin for this window
+                  No {COPY.modes[mode].lower} pricing at or below {marginTarget}% margin for this window
                   — the setup passes the test.
                 </td>
               </tr>
@@ -373,11 +372,11 @@ export function ThresholdTest() {
             </dd>
             {discountDetail.poolSharePct !== undefined && (
               <>
-                <dt>Grower pool share</dt>
+                <dt>{COPY.pool.label}</dt>
                 <dd>
                   {discountDetail.poolSharePct}% of cost — margin reads{' '}
-                  {pct(lineMarginPct(discountDetail))} pooled,{' '}
-                  {pct(lineUnpooledMarginPct(discountDetail))} unpooled
+                  {pct(lineMarginPct(discountDetail))} {COPY.pool.withShare},{' '}
+                  {pct(lineUnpooledMarginPct(discountDetail))} {COPY.pool.withoutShare}
                 </dd>
               </>
             )}
@@ -406,7 +405,7 @@ export function ThresholdTest() {
       {repriceOpen && (
         <RepriceModal
           lines={repriceLines}
-          note={mode === 'Foodservice' ? 'Contract lines route through trade-agreement journal approval.' : undefined}
+          note={mode === 'Foodservice' ? COPY.threshold.foodserviceRepriceNote : undefined}
           onClose={() => setRepriceOpen(false)}
           onApply={applyReprice}
         />

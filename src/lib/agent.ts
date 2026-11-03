@@ -11,21 +11,18 @@ import {
   lineSalesPrice,
   lineBreachesFloor,
 } from '../models/types'
-import { AS_OF, DEFAULT_RETAIL_MARGIN_TARGET, iso } from './config'
+import { AS_OF, COPY, DEFAULT_RETAIL_MARGIN_TARGET, LINES, iso } from './config'
 import { money, pct, shortDate } from './format'
 
 export interface AgentReply {
   text: string
 }
 
-export const SUGGESTED_PROMPTS = [
-  'How many price overrides this month?',
-  'Which override has the worst margin?',
-  `Show pricing setup below ${DEFAULT_RETAIL_MARGIN_TARGET}% margin`,
-  'Are we below floor anywhere?',
-  'What should we do about the blueberries?',
-  'Summarize the foodservice contract recommendations',
-]
+/** Scenario vocabulary — routing keywords and the industry-specific sentences. */
+const A = COPY.agent
+const mentionsAny = (q: string, words: string[]) => words.some((w) => q.includes(w))
+
+export const SUGGESTED_PROMPTS = A.suggestedPrompts
 
 export function askAgent(raw: string): AgentReply {
   const q = raw.toLowerCase()
@@ -74,7 +71,7 @@ export function askAgent(raw: string): AgentReply {
         (floorHits.length ? `, and ${floorHits.length} that went under the price floor` : '') +
         `.\n\n` +
         `The worst is ${worst.itemName} (${worst.itemNumber}, ${worst.pack}) on order ${worst.orderNumber}: ` +
-        `overridden to ${money(worst.overridePrice)} against a ${money(worst.unitCost)} case cost — ` +
+        `overridden to ${money(worst.overridePrice)} against a ${money(worst.unitCost)} ${A.unitCost} —` +
         `${pct(overrideMarginPct(worst))} margin, reason "${worst.reasonCode}", by ${worst.overriddenBy} for ${worst.customer}.\n\n` +
         `Open the Override Audit tab to email the rep or raise a D365 case.`,
     }
@@ -110,29 +107,23 @@ export function askAgent(raw: string): AgentReply {
       .slice(0, 6)
       .map(
         (l) =>
-          `· ${l.itemName} (${l.itemNumber}) — ${l.mode} · ${l.channelDetail} — ` +
+          `· ${l.itemName} (${l.itemNumber}) — ${COPY.modes[l.mode].label} · ${l.channelDetail} —` +
           `sells at ${money(lineSalesPrice(l))} = ${pct(lineMarginPct(l))}` +
-          (l.poolSharePct ? ` (${pct(lineUnpooledMarginPct(l))} before the ${l.poolSharePct}% grower pool share)` : ''),
+          (l.poolSharePct ? ` (${pct(lineUnpooledMarginPct(l))} before the ${l.poolSharePct}% ${COPY.pool.inline})` : ''),
       )
       .join('\n')
-    const packed = hits.filter((l) => l.productLine === 'Packed fresh').length
+    const packed = hits.filter((l) => l.productLine === LINES.commodity).length
     return {
       text:
         `${hits.length} pricing setup line${hits.length === 1 ? '' : 's'} at or below ${threshold}% margin:\n\n${lines}` +
         (hits.length > 6 ? `\n…and ${hits.length - 6} more.` : '') +
-        `\n\n${packed} of ${hits.length} are packed fresh, where list margin is thin enough that a routine deal crosses the floor. ` +
+        `\n\n${A.commodityHits(packed, hits.length)}` +
         `Use Margin Threshold Test to select lines and draft a reprice.`,
     }
   }
 
   // ── short-life inventory ──
-  if (
-    q.includes('blueberr') ||
-    q.includes('berry') ||
-    q.includes('shelf') ||
-    q.includes('cover') ||
-    q.includes('shrink')
-  ) {
+  if (mentionsAny(q, A.inventoryKeywords)) {
     const rec = RECOMMENDATIONS.find((r) => r.id === 'REC-RTL-5')!
     const berries = PRICING_SETUP.find((l) => l.id === 'PRC-RTL-05')!
     const cover = coverDaysFor(berries.itemNumber, berries.customerCodes ?? [])
@@ -141,33 +132,29 @@ export function askAgent(raw: string): AgentReply {
         `${rec.title}. ${rec.detail}\n` +
         rec.bullets!.map((b) => `· ${b}`).join('\n') +
         `\n${rec.impact}.\n\n` +
-        `Measured now: ${cover.toFixed(1)} days of cover against a ${shelfLifeFor(berries.itemNumber)}-day shelf life, ` +
-        `and the e-commerce price is already ${money(lineSalesPrice(berries))} — exactly on its floor at ${pct(lineMarginPct(berries))} margin. ` +
-        `Diverting to fresh-cut protects more margin than a deeper cut can.`,
+        A.inventoryMeasured(
+          cover.toFixed(1),
+          shelfLifeFor(berries.itemNumber),
+          money(lineSalesPrice(berries)),
+          pct(lineMarginPct(berries)),
+        ),
     }
   }
 
   // ── foodservice contracts ──
-  if (
-    q.includes('foodservice') ||
-    q.includes('contract') ||
-    q.includes('keystone') ||
-    q.includes('windy city') ||
-    q.includes('pool')
-  ) {
+  if (mentionsAny(q, A.contractKeywords)) {
     const recs = RECOMMENDATIONS.filter((r) => r.audience === 'Foodservice')
     const pooled = PRICING_SETUP.filter((l) => (l.poolSharePct ?? 0) > 0)
     return {
       text:
-        `${recs.length} open foodservice contract recommendations:\n\n` +
+        `${A.contractsHeader(recs.length)}\n\n` +
         recs.map((r) => `· ${r.title}${r.impact ? ` — ${r.impact}` : ''}`).join('\n') +
-        `\n\n${pooled.length} of ${PRICING_SETUP.length} priced lines currently carry a grower pool share. ` +
-        `On pooled apples that share is the difference between a promotion that holds margin and one that does not.`,
+        `\n\n${A.pooledLines(pooled.length, PRICING_SETUP.length)}`,
     }
   }
 
   // ── customers ──
-  if (q.includes('customer') || q.includes('retailer') || q.includes('chain')) {
+  if (mentionsAny(q, A.customerKeywords)) {
     const byCustomer = new Map<string, number>()
     for (const o of PRICE_OVERRIDES) {
       byCustomer.set(o.customer, (byCustomer.get(o.customer) ?? 0) + 1)
@@ -175,22 +162,12 @@ export function askAgent(raw: string): AgentReply {
     const top = [...byCustomer.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4)
     return {
       text:
-        `The retail book prices ${CUSTOMERS.length} ship-to customers across ${new Set(CUSTOMERS.map((c) => c.state)).size} states, ` +
-        `plus the foodservice contracts.\n\n` +
+        `${A.customersIntro(CUSTOMERS.length, new Set(CUSTOMERS.map((c) => c.state)).size)}\n\n` +
         `Customers with the most order-line overrides:\n` +
         top.map(([c, n]) => `· ${c} — ${n} override${n === 1 ? '' : 's'}`).join('\n'),
     }
   }
 
   // ── default ──
-  return {
-    text:
-      `I can help with:\n` +
-      `· Override audit — "How many price overrides this month?"\n` +
-      `· Threshold tests — "Show pricing setup below 20% margin"\n` +
-      `· Price floors — "Are we below floor anywhere?"\n` +
-      `· Short-life inventory — "What should we do about the blueberries?"\n` +
-      `· Foodservice — "Summarize the foodservice contract recommendations"\n\n` +
-      `Everything I answer is computed from the same data the dashboard uses.`,
-  }
+  return { text: A.help }
 }

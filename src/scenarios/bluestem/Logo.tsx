@@ -4,7 +4,9 @@
 // in Midnight; on dark backgrounds "blue" turns white and "stem" turns green
 // (BRAND_GUIDE.md). Rendered inline so the built artifact stays self-contained.
 
-interface BluestemLogoProps {
+import type { LogoProps } from '../types'
+
+interface BluestemLogoProps extends LogoProps {
   /** Rendered height of the lockup in px; the wordmark scales with it. */
   height?: number
   /** Use the on-Midnight colourway. */

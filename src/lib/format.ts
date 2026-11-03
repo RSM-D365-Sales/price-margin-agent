@@ -26,10 +26,7 @@ export function num(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-export function shortDate(value: string): string {
-  const d = new Date(value + (value.length === 10 ? 'T00:00:00' : ''))
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
+export { shortDate } from './dates'
 
 /** The demo's "today". */
 export function isoToday(): string {

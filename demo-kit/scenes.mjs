@@ -18,7 +18,7 @@
  * scene's VO should sit just under `seconds * 2.5` words so the narrator is
  * never racing the cut.
  *
- * Figures quoted here come from src/data/mockData.ts at AS_OF 2026-10-08. If
+ * Figures quoted here come from src/scenarios/bluestem/data.ts at AS_OF 2026-10-08. If
  * the dataset changes, re-check every number in `vo` and `onScreen`.
  */
 

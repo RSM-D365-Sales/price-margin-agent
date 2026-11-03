@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { PRICE_HISTORY } from '../data/mockData'
 import { money, pct, shortDate } from '../lib/format'
 import { Kpi } from '../components/Kpi'
+import { COPY, LINES } from '../lib/config'
 
 export function PriceHistory() {
   const products = useMemo(() => {
@@ -59,9 +60,7 @@ export function PriceHistory() {
         <div className="eyebrow">Audit report · Price history</div>
         <h1>Price History</h1>
         <p className="lede">
-          Pick an item (pack) and a price scope to see every price change — who changed it, why, and
-          the window each price was live for. A scope is whatever the price is set against:
-          Bluestem&rsquo;s list price, a customer price group, or one customer&rsquo;s contract line.
+          {COPY.priceHistory.lede}
         </p>
       </header>
 
@@ -126,7 +125,7 @@ export function PriceHistory() {
                 {record.itemName} · {record.pack}
               </h2>
               <div style={{ display: 'flex', gap: 8 }}>
-                <span className={`pill ${record.productLine === 'Fresh-cut' ? 'grey' : 'midnight'}`}>
+                <span className={`pill ${record.productLine === LINES.premium ? 'grey' : 'midnight'}`}>
                   {record.productLine}
                 </span>
                 <span className="pill blue">{record.scopeName}</span>

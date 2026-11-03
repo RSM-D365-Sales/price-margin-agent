@@ -22,8 +22,8 @@ through the live demo. Built the same way as `../sales-prorate/demo-kit` and
 
 ## Data
 
-The app is static: `src/data/mockData.ts` is the dataset and every date hangs
-off `AS_OF` in `src/lib/config.ts`. The tour and the cheat sheet quote figures
+The app is static: `src/scenarios/bluestem/data.ts` is the dataset and every
+date hangs off `AS_OF` in `src/scenarios/bluestem/config.ts`. The tour and the cheat sheet quote figures
 as of **2026-10-08**. If you move `AS_OF` or change the data, re-check the
 numbers in `scenes.mjs` (`vo` and `onScreen`) and `cheat-sheet.html`, then
 re-record.

@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ChatPanel } from './ChatPanel'
-import { BluestemLogo } from './BluestemLogo'
-import { AS_OF, BRAND, CURRENT_SEASON } from '../lib/config'
+import { AS_OF, BRAND, COPY, CURRENT_SEASON, Logo } from '../lib/config'
 import { shortDate } from '../lib/format'
 import rsmLogoWhite from '../assets/rsmus-logo-white.png'
 
@@ -21,12 +20,12 @@ export function AppShell() {
 
   return (
     <div className="shell">
-      {/* Title ribbon — Midnight bar per BRAND_GUIDE.md "App header pattern":
-          bluestem logo left, app name, then as-of, the RSM sponsor mark, and
-          the signed-in persona on the right. */}
+      {/* Title ribbon — dark chrome bar (Bluestem BRAND_GUIDE.md "App header
+          pattern"): scenario logo left, app name, then as-of, the RSM sponsor
+          mark, and the signed-in persona on the right. */}
       <header className="ribbon">
         <div className="ribbon-brand">
-          <BluestemLogo height={26} onDark />
+          <Logo height={26} onDark />
           <span className="ribbon-divider" aria-hidden="true" />
           <span className="ribbon-app">Pricing &amp; Margin Workspace</span>
         </div>
@@ -34,7 +33,7 @@ export function AppShell() {
           <span className="ribbon-asof">
             {CURRENT_SEASON} · as of <b>{shortDate(AS_OF)}</b>
           </span>
-          {/* RSM sponsor mark — required on every bluestem app (BRAND_GUIDE.md) */}
+          {/* RSM sponsor mark — required on every scenario */}
           <span className="sponsor">
             <span className="sponsor-label">Powered by</span>
             <img src={rsmLogoWhite} alt="RSM" height={22} />
@@ -68,7 +67,7 @@ export function AppShell() {
           ))}
         </div>
         <div className="nav-foot">
-          Guards margin across retail price groups, foodservice contracts, and grower pools.
+          {COPY.shell.navFoot}
           <span className="mode">{BRAND.tagline}</span>
         </div>
       </nav>

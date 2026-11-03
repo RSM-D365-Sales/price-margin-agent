@@ -9,7 +9,7 @@ import {
 } from '../models/types'
 import { ORG_HIERARCHY } from '../data/mockData'
 import { money, pct, isoToday } from '../lib/format'
-import { DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
+import { COPY, DEFAULT_RETAIL_MARGIN_TARGET, iso } from '../lib/config'
 import { Modal } from './Modal'
 
 const COMPONENT_LABELS: Record<PriceComponentTarget, string> = {
@@ -149,7 +149,8 @@ export function RepriceModal({
    *   salesPrice = (base + marginComp) * (1 - disc) + autoCharge
    *
    * Target margin method: salesPrice = effectiveCost / (1 - m), where effective
-   * cost is net of any grower pool share — a pooled line needs a smaller move.
+   * cost is net of any third-party cost share (grower pool, mill program) — a
+   * shared line needs a smaller move.
    * Percent-change method: salesPrice = currentSalesPrice * (1 + change/100).
    * With "hold at or above the floor" on, the result is floored at the price
    * group's floor.
@@ -197,7 +198,7 @@ export function RepriceModal({
     <Modal
       title="Draft new price"
       sub={
-        `The agent solves the chosen component so each line lands on its new price, measured against cost net of any grower pool share.` +
+        COPY.reprice.sub +
         (note ? ` ${note}` : '')
       }
       onClose={onClose}

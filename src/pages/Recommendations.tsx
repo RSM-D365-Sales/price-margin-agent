@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { RECOMMENDATIONS, RETAIL_KPIS, FOODSERVICE_KPIS } from '../data/mockData'
 import type { RecAudience, Recommendation } from '../models/types'
 import { Kpi } from '../components/Kpi'
+import { COPY } from '../lib/config'
 import { useToast } from '../components/useToast'
 
 const TREND_GLYPH = { up: '▲', down: '▼', flat: '—' } as const
@@ -48,15 +49,12 @@ export function Recommendations() {
         <div className="eyebrow">AI price &amp; discount guidance</div>
         <h1>Recommendations</h1>
         <p className="lede">
-          Objective: hold gross margin through the apple and squash harvest while keeping short-life
-          product moving and trade spend where it earns. The agent monitors the KPIs below and
-          proposes pricing, promotion, inventory, and contract moves — every action stays
-          human-in-the-loop.
+          {COPY.recommendations.lede}
         </p>
       </header>
 
       <div className="kpi-strip">
-        <Kpi label="Open recommendations" value={String(open.length)} sub={`${audience} view`} />
+        <Kpi label="Open recommendations" value={String(open.length)} sub={`${COPY.modes[audience].label} view`} />
         <Kpi label="Accepted this session" value={String(accepted)} tone="sage" />
         <Kpi
           label="Projected margin upside"
@@ -70,7 +68,7 @@ export function Recommendations() {
           className={`tab${audience === 'Retail' ? ' active' : ''}`}
           onClick={() => setAudience('Retail')}
         >
-          Retail Pricing Agent
+          {COPY.modes.Retail.agent}
           <span className="count">
             {recs.filter((r) => r.audience === 'Retail' && r.status === 'Open').length}
           </span>
@@ -79,7 +77,7 @@ export function Recommendations() {
           className={`tab${audience === 'Foodservice' ? ' active' : ''}`}
           onClick={() => setAudience('Foodservice')}
         >
-          Foodservice Contract Agent
+          {COPY.modes.Foodservice.agent}
           <span className="count">
             {recs.filter((r) => r.audience === 'Foodservice' && r.status === 'Open').length}
           </span>
@@ -136,9 +134,7 @@ export function Recommendations() {
       <div className="section">
         <div className="section-head">
           <h2>
-            {audience === 'Retail'
-              ? 'Retail KPIs the agent monitors'
-              : 'Foodservice contract KPIs the agent monitors'}
+            {COPY.modes[audience].kpiHeading}
           </h2>
         </div>
         <div className="chip-row">
