@@ -34,6 +34,7 @@ import type {
   PricingSetupLine,
   Recommendation,
 } from '../models/types'
+import type { SimulatorData } from '../models/tradeAgreements'
 
 export interface ScenarioBrand {
   /** Wordmark text, in the brand's own casing. */
@@ -99,6 +100,8 @@ export interface ScenarioData {
   foodserviceKpis: KpiMonitor[]
   categories: readonly string[]
   shipments: ShipmentModel
+  /** Trade agreement journal for the Price Simulator page. Absent → page hidden. */
+  simulator?: SimulatorData
 }
 
 /** Every piece of UI wording that names the industry. */

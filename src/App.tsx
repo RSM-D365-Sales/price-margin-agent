@@ -7,6 +7,8 @@ import { PriceUpdates } from './pages/PriceUpdates'
 import { PriceHistory } from './pages/PriceHistory'
 import { Recommendations } from './pages/Recommendations'
 import { Setup } from './pages/Setup'
+import { PriceSimulator } from './pages/PriceSimulator'
+import { SIMULATOR } from './data/mockData'
 
 export default function App() {
   return (
@@ -16,6 +18,7 @@ export default function App() {
           <Route path="/" element={<Overview />} />
           <Route path="/overrides" element={<Overrides />} />
           <Route path="/threshold-test" element={<ThresholdTest />} />
+          {SIMULATOR && <Route path="/price-simulator" element={<PriceSimulator />} />}
           <Route path="/price-updates" element={<PriceUpdates />} />
           <Route path="/price-history" element={<PriceHistory />} />
           <Route path="/recommendations" element={<Recommendations />} />

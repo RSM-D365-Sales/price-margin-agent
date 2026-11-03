@@ -299,6 +299,21 @@ wheel glyph, not RIMEX's logo artwork — drop in their SVG in
 `src/scenarios/rimex/Logo.tsx` if they supply one. `AS_OF` is 2026-11-03;
 move it in `src/scenarios/rimex/config.ts` before the meeting.
 
+### Price Simulator (`#/price-simulator`)
+
+Shown only when a scenario ships `data.simulator` (RIMEX does; Bluestem does
+not, so its nav is unchanged). Customer → product → quantity → price date,
+evaluated by `src/models/tradeAgreements.ts` the way F&SC does: price searched
+Table → Group → All with the lowest valid price winning while Find next is on;
+line discounts searched over the nine account × item combinations and summed
+until a valid line has Find next off; quantity breaks are From ≤ qty < To,
+dates inclusive. The RIMEX journal (`src/scenarios/rimex/simulator.ts`)
+reproduces the TSR-63-4400 trade agreements from the F&SC demo environment.
+Default beat: RIM-005 has a negotiated 21,000 price and the OP 5% group
+discount stacks on it (Find next on) → 19,950 = 20.3%, under the 25% floor.
+RIM-002 / TSR-57-4000 is the counter-example (customer discount with Find
+next off → 26.0%).
+
 To add a prospect: copy `src/scenarios/rimex/`, then
 
 1. Edit `BRAND`, `AS_OF`, `seasonOf` and `LINES` in `config.ts`, and every

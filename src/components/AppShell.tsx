@@ -4,16 +4,21 @@ import { ChatPanel } from './ChatPanel'
 import { AS_OF, BRAND, COPY, CURRENT_SEASON, Logo } from '../lib/config'
 import { shortDate } from '../lib/format'
 import rsmLogoWhite from '../assets/rsmus-logo-white.png'
+import { SIMULATOR } from '../data/mockData'
 
-const NAV = [
+const ALL_NAV = [
   { to: '/', label: 'Overview', glyph: '◈', end: true },
   { to: '/overrides', label: 'Override Audit', glyph: '✎' },
   { to: '/threshold-test', label: 'Margin Threshold Test', glyph: '◮' },
+  { to: '/price-simulator', label: 'Price Simulator', glyph: '⊞', needsSimulator: true },
   { to: '/price-updates', label: 'Price Updates', glyph: '↗' },
   { to: '/price-history', label: 'Price History', glyph: '⧖' },
   { to: '/recommendations', label: 'Recommendations', glyph: '✦' },
   { to: '/setup', label: 'Setup', glyph: '⚙' },
 ]
+
+/** The simulator only shows for scenarios that ship a trade agreement journal. */
+const NAV = ALL_NAV.filter((n) => !('needsSimulator' in n) || SIMULATOR !== undefined)
 
 export function AppShell() {
   const [chatOpen, setChatOpen] = useState(false)

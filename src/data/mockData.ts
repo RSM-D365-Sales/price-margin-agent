@@ -59,6 +59,9 @@ export const FOODSERVICE_KPIS = data.foodserviceKpis
 /** Category list for filters. */
 export const CATEGORIES = data.categories
 
+/** Trade agreement journal for the Price Simulator — undefined hides the page. */
+export const SIMULATOR = data.simulator
+
 // ═══════════════════════════════════════════════════════════════════════
 // 5 · Shipment performance (seeded, deterministic)
 // ═══════════════════════════════════════════════════════════════════════

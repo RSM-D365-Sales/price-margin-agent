@@ -41,6 +41,7 @@ import type {
   CustomerLocation,
 } from '../../models/types'
 import { AS_OF } from './config'
+import { simulator } from './simulator'
 
 const iso = makeIso(AS_OF)
 
@@ -819,4 +820,5 @@ export const data: ScenarioData = {
     customerWeight: CUSTOMER_WEIGHT,
     dowFactor: DOW_FACTOR,
   },
+  simulator,
 }

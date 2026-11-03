@@ -1170,3 +1170,189 @@
     display: none;
   }
 }
+
+/* ═══ Price Simulator ═══════════════════════════════════════════════════
+   Waterfall colours validated (dataviz validate_palette, light): totals in
+   the brand 500 step, changes in orange #eb6834 — all checks pass for the
+   RIMEX teal pair. Cost / floor reference lines are ink, labelled in the
+   legend; the journal grid below is the table view. */
+.sim-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.sim-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 6px;
+}
+@media (max-width: 1100px) {
+  .sim-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.sim-card {
+  padding: 18px 20px;
+}
+.sim-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--ink-500);
+}
+.wf {
+  --wf-total: var(--blue-500);
+  --wf-step: #eb6834;
+}
+.wf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ink-600);
+  margin-bottom: 10px;
+}
+.wf-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wf-key {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.wf-key.total {
+  background: var(--wf-total);
+}
+.wf-key.step {
+  background: var(--wf-step);
+}
+.wf-key-line {
+  width: 0;
+  height: 12px;
+  display: inline-block;
+  border-left: 2px dashed var(--ink-500);
+}
+.wf-key-line.floor {
+  border-left: 2px dotted var(--ink-800);
+}
+.wf-row {
+  display: grid;
+  grid-template-columns: 210px 1fr 110px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px;
+  border-radius: var(--radius-sm);
+}
+.wf-row.hover {
+  background: var(--ink-50);
+}
+.wf-label span {
+  display: block;
+  font-weight: 600;
+  font-size: 13px;
+}
+.wf-label small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-500);
+}
+.wf-track {
+  position: relative;
+  height: 22px;
+  background: var(--ink-50);
+  border-radius: 4px;
+}
+.wf-bar {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 4px;
+  min-width: 2px;
+}
+.wf-bar.total {
+  background: var(--wf-total);
+}
+.wf-bar.step {
+  background: var(--wf-step);
+}
+.wf-line {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  border-left: 2px dashed var(--ink-500);
+}
+.wf-line.floor {
+  border-left: 2px dotted var(--ink-800);
+}
+.wf-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 13px;
+}
+.wf-value.step {
+  color: var(--ink-600);
+  font-weight: 500;
+}
+.wf-readout {
+  margin-top: 10px;
+  min-height: 18px;
+  font-size: 12px;
+  color: var(--ink-600);
+}
+.sim-path-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  margin: 4px 0 6px;
+}
+.sim-path ol {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.sim-step {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 10px;
+  padding: 5px 8px;
+  font-size: 12.5px;
+  border-left: 3px solid var(--ink-100);
+  margin-bottom: 2px;
+}
+.sim-step.found {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+  font-weight: 600;
+}
+.sim-step.notSearched,
+.sim-step.noGroup {
+  color: var(--ink-400);
+}
+.sim-step-level {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+.sim-step-result {
+  white-space: nowrap;
+}
+.sim-journal td {
+  white-space: nowrap;
+}
+.data-table.sim-journal th,
+.data-table.sim-journal td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.sim-muted td {
+  color: var(--ink-400);
+}
+.sim-dim {
+  color: var(--ink-400);
+}

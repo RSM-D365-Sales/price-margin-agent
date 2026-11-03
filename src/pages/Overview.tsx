@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { CUSTOMERS, FOODSERVICE_CONTRACTS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS } from '../data/mockData'
+import { CUSTOMERS, FOODSERVICE_CONTRACTS, PRICE_OVERRIDES, PRICING_SETUP, RECOMMENDATIONS, SIMULATOR } from '../data/mockData'
 import {
   overrideMarginPct,
   overrideBreachesFloor,
@@ -44,6 +44,16 @@ const CARDS = [
     title: 'AI Recommendations',
     body: COPY.overview.recsCard,
   },
+  ...(SIMULATOR
+    ? [
+        {
+          to: '/price-simulator',
+          glyph: '⊞',
+          title: 'Price Simulator',
+          body: 'Pick a customer and a product and watch the trade agreement search resolve the price — which lines were found, which were skipped, and how the net price is built.',
+        },
+      ]
+    : []),
 ]
 
 export function Overview() {
