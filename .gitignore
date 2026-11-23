@@ -8,3 +8,4 @@ dist/
 # rendered booth videos and frames (regenerate with node demo-kit/record.mjs)
 demo-kit/out/
 dist-rimex/
+dist-sunset/

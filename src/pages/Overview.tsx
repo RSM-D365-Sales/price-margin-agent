@@ -10,7 +10,7 @@ import {
   lineBreachesFloor,
 } from '../models/types'
 import { money0, num, pct, shortDate } from '../lib/format'
-import { AS_OF, COPY, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, LINES, iso } from '../lib/config'
+import { AS_OF, COPY, CURRENT_SEASON, DEFAULT_RETAIL_MARGIN_TARGET, LINES, UI, iso } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 
 const CARDS = [
@@ -106,7 +106,7 @@ export function Overview() {
     <>
       <header className="page-head">
         <div className="eyebrow">
-          {CURRENT_SEASON} · as of {shortDate(AS_OF)}
+          {COPY.overview.eyebrow ?? CURRENT_SEASON} · as of {shortDate(AS_OF)}
         </div>
         <h1>Pricing &amp; Margin Workspace</h1>
         <p className="lede">
@@ -114,7 +114,7 @@ export function Overview() {
         </p>
       </header>
 
-      {stats.breaches > 0 && (
+      {UI.overviewFloorKpi && stats.breaches > 0 && (
         <div className="callout warn">
           <span className="callout-glyph" aria-hidden="true">
             ⚠
@@ -145,12 +145,14 @@ export function Overview() {
           tone={stats.failing ? 'red' : 'sage'}
           sub={`of ${PRICING_SETUP.length} active price records`}
         />
-        <Kpi
-          label="Below floor, no promo"
-          value={num(stats.breaches)}
-          tone={stats.breaches ? 'red' : 'sage'}
-          sub="promo prices that outlived their window"
-        />
+        {UI.overviewFloorKpi && (
+          <Kpi
+            label="Below floor, no promo"
+            value={num(stats.breaches)}
+            tone={stats.breaches ? 'red' : 'sage'}
+            sub="promo prices that outlived their window"
+          />
+        )}
         <Kpi label="Open recommendations" value={num(stats.openRecs)} sub={COPY.overview.recsKpiSub} />
         <Kpi
           label="Margin at risk"

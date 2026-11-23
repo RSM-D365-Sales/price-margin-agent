@@ -1,0 +1,88 @@
+/* ── SUNSET theme ──────────────────────────────────────────────────────
+   Retints the base tokens in src/styles/theme.css from the live
+   sunsetgrown.com stylesheet: SUNSET magenta (#D41367 — nav, buttons) where
+   Bluestem has RSM Blue, and a deep plum built from the site's purple
+   accents (#863399 / #6A167D) where Bluestem has Midnight. Status colours
+   (green / amber / red) are left alone — they are semantic, not brand.
+
+   The site sets headings in Gotham Black/Bold, which is a licensed font and
+   is not bundled; headings use the bundled Poppins at heavier weights.
+
+   This file is imported before the base stylesheet, so every rule carries
+   extra specificity (:root:root, html .x) to win without !important. */
+
+:root:root {
+  /* plum · chrome, headings, dark surfaces (in the midnight slots) */
+  --midnight-950: #1a0820;
+  --midnight-900: #2a0f33;
+  --midnight-800: #3d1749;
+  --midnight-700: #52205f;
+  --midnight-100: #e6d9ea;
+  --midnight-50: #f5eff7;
+
+  /* magenta · actions, links, active nav (in the blue slots) */
+  --blue-800: #7d0b3c;
+  --blue-700: #960d48;
+  --blue-600: #b01055; /* magenta deepened for AA text on white (≈6:1) */
+  --blue-500: #d41367; /* SUNSET magenta */
+  --blue-300: #e871a4;
+  --blue-200: #f3b8d1;
+  --blue-100: #fbe7f0;
+  --blue-50: #fdf3f7;
+
+  --shadow: 0 1px 2px rgba(42, 15, 51, 0.05), 0 1px 4px rgba(42, 15, 51, 0.06);
+  --shadow-lg: 0 12px 32px -12px rgba(42, 15, 51, 0.3);
+}
+
+/* Neutral greys on the plum chrome (the base uses Midnight-tinted ones). */
+html .ribbon-meta,
+html .sponsor-label,
+html .persona-title,
+html .nav-link {
+  color: #ddcde2;
+}
+html .nav-link .glyph,
+html .nav-foot {
+  color: #a690ad;
+}
+html .nav-foot .mode {
+  color: #c2adc8;
+}
+
+/* Bolder headings, closer to the site's Gotham Black. */
+html h1,
+html h2 {
+  font-weight: 700;
+}
+
+/* ═══ SUNSET wordmark ═══ */
+.sunset-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1;
+  flex: none;
+}
+.sunset-mark {
+  flex: none;
+  display: block;
+}
+.sunset-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.sunset-wordmark {
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+.sunset-descriptor {
+  font-family: var(--font-head);
+  font-weight: 500;
+  font-size: 0.3em;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-top: 0.2em;
+}

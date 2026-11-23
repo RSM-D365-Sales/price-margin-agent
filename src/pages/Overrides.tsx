@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { PRICE_OVERRIDES } from '../data/mockData'
 import { overrideMarginPct, overrideBreachesFloor, type PriceOverride } from '../models/types'
 import { money, pct, num, shortDate, isoDaysAgo, isoToday } from '../lib/format'
-import { COPY, DEFAULT_RETAIL_MARGIN_TARGET } from '../lib/config'
+import { COPY, DEFAULT_RETAIL_MARGIN_TARGET, UI } from '../lib/config'
 import { Kpi } from '../components/Kpi'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/useToast'
@@ -74,12 +74,14 @@ export function Overrides() {
           tone={kpis.below > 0 ? 'red' : 'sage'}
           sub="shown in the grid below"
         />
-        <Kpi
-          label="Below price floor"
-          value={num(kpis.floorHits)}
-          tone={kpis.floorHits > 0 ? 'red' : 'sage'}
-          sub="items in a floor price group"
-        />
+        {UI.overrideFloorFilter && (
+          <Kpi
+            label="Below price floor"
+            value={num(kpis.floorHits)}
+            tone={kpis.floorHits > 0 ? 'red' : 'sage'}
+            sub="items in a floor price group"
+          />
+        )}
         <Kpi label="Average override margin" value={pct(kpis.avg)} sub="across the date range" />
         <Kpi
           label="Price given up"
@@ -119,12 +121,14 @@ export function Overrides() {
             onChange={(e) => setMarginFilter(Number(e.target.value))}
           />
         </div>
-        <label
-          style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingBottom: 8 }}
-        >
-          <input type="checkbox" checked={floorOnly} onChange={(e) => setFloorOnly(e.target.checked)} />
-          Below floor only
-        </label>
+        {UI.overrideFloorFilter && (
+          <label
+            style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, paddingBottom: 8 }}
+          >
+            <input type="checkbox" checked={floorOnly} onChange={(e) => setFloorOnly(e.target.checked)} />
+            Below floor only
+          </label>
+        )}
         <div className="spacer" />
         <span className="pill midnight">{rows.length} lines match</span>
       </div>

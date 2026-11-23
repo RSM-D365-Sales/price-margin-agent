@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
 import { meta as bluestemMeta } from './src/scenarios/bluestem/meta'
 import { meta as rimexMeta } from './src/scenarios/rimex/meta'
+import { meta as sunsetMeta } from './src/scenarios/sunset/meta'
 
 /**
  * Scenario selection. One scenario is compiled per build, so a prospect's
@@ -10,6 +11,7 @@ import { meta as rimexMeta } from './src/scenarios/rimex/meta'
  *
  *   npm run dev / build / preview              bluestem (default)
  *   npm run dev:rimex / build:rimex / …        rimex  (vite --mode rimex)
+ *   npm run dev:sunset / build:sunset / …      sunset (vite --mode sunset)
  *
  * VITE_SCENARIO also works, for CI. Each scenario gets its own public/ (so its
  * own favicon) and its own outDir, so both builds can sit side by side.
@@ -17,6 +19,7 @@ import { meta as rimexMeta } from './src/scenarios/rimex/meta'
 const SCENARIOS = {
   bluestem: { meta: bluestemMeta, outDir: 'dist' },
   rimex: { meta: rimexMeta, outDir: 'dist-rimex' },
+  sunset: { meta: sunsetMeta, outDir: 'dist-sunset' },
 } as const
 type ScenarioKey = keyof typeof SCENARIOS
 

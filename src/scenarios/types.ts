@@ -136,6 +136,8 @@ export interface ScenarioCopy {
   regionsWord: string
   shell: { navFoot: string }
   overview: {
+    /** Eyebrow above the Overview title. Absent → "<season> · as of <date>". */
+    eyebrow?: string
     lede: (customers: number, contracts: number) => string
     thresholdCard: string
     priceUpdatesCard: string
@@ -175,8 +177,20 @@ export interface ScenarioCopy {
   }
 }
 
+/**
+ * Optional page features a scenario can switch off. Absent → shown, so the
+ * Bluestem and RIMEX builds are unchanged.
+ */
+export interface ScenarioUi {
+  /** Overview: the "Below floor, no promo" KPI and the floor-breach callout. */
+  overviewFloorKpi?: boolean
+  /** Override Audit: the "Below price floor" KPI and the "Below floor only" checkbox. */
+  overrideFloorFilter?: boolean
+}
+
 export interface Scenario {
   key: string
+  ui?: ScenarioUi
   brand: ScenarioBrand
   /**
    * The "today" every date in the dataset is anchored to. Never call

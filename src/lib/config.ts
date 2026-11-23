@@ -14,6 +14,12 @@ export const COPY = scenario.copy
 export const LINES = scenario.lines
 export const Logo = scenario.Logo
 
+/** Page features the scenario can switch off (default: everything shown). */
+export const UI = {
+  overviewFloorKpi: scenario.ui?.overviewFloorKpi ?? true,
+  overrideFloorFilter: scenario.ui?.overrideFloorFilter ?? true,
+}
+
 /**
  * The "today" every date in this demo is anchored to. Never call `new Date()`
  * for business logic — demo kits get reused weeks later and stale windows are

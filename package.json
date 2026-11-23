@@ -10,7 +10,10 @@
     "dev:rimex": "vite --mode rimex",
     "build:rimex": "tsc && vite build --mode rimex",
     "preview:rimex": "vite preview --mode rimex",
-    "build:all": "npm run build && npm run build:rimex"
+    "dev:sunset": "vite --mode sunset",
+    "build:sunset": "tsc && vite build --mode sunset",
+    "preview:sunset": "vite preview --mode sunset",
+    "build:all": "npm run build && npm run build:rimex && npm run build:sunset"
   },
   "dependencies": {
     "react": "^18.3.1",

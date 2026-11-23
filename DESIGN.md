@@ -276,6 +276,7 @@ prospect's bundle never contains another company's data. The contract is
 |---|---|---|
 | `bluestem` (default) | `npm run build` → `dist/` | IFPA show circuit; what `main` / production serve |
 | `rimex` | `npm run build:rimex` → `dist-rimex/` | RIMEX (rimex.com) — wheels & rims. Published as Pages project `industrial-price-margin` (https://industrial-price-margin.pages.dev) so the URL carries no prospect name |
+| `sunset` | `npm run build:sunset` → `dist-sunset/` | Mastronardi Produce — SUNSET® greenhouse produce (sunsetgrown.com). Published as Pages project `greenhouse-price-margin` (https://greenhouse-price-margin.pages.dev) so the URL carries no prospect name |
 
 **RIMEX** wheels and rim components (TSR-63-4400, TSR-57-4000, TSR-49-3600,
 LR-63-HD, BSB-57) come from one item master, `src/scenarios/rimex/items.ts`:
@@ -304,6 +305,33 @@ signed-in persona are fictional. The wordmark is typeset text beside a generic
 wheel glyph, not RIMEX's logo artwork — drop in their SVG in
 `src/scenarios/rimex/Logo.tsx` if they supply one. `AS_OF` is 2026-11-03;
 move it in `src/scenarios/rimex/config.ts` before the meeting.
+
+**SUNSET** (Mastronardi Produce) carries the twelve SUNSET® products the
+request listed, from one item master, `src/scenarios/sunset/items.ts` (name,
+pack, case list, case cost). Pack configurations, prices and costs are
+synthetic — sunsetgrown.com does not publish them. `assertMasterConsistency()`
+in `sunset/data.ts` throws at load on any drift. Categories are Cucumbers,
+Tomatoes, Peppers and Berries; retail channels are Grocery, **Wholesale**
+(replaces Club & Mass), Natural and E-commerce. Product lines are *Specialty
+brands* (Wild Wonders®, Angel Sweet®, SHAZAM!®, Sweet Twister™, WOW™
+Dreamberry, Organic Mini Cucumber 6ct; ~38–41% list) and *Core greenhouse*
+(Romana, Beefsteak, Sweet Bell, Mini Cucumbers; ~28–35%). Beats match
+Bluestem: 6 of 20 lines fail 25%, all core greenhouse; 3 below floor with no
+promo — headline is Keystone Foodservice's Beefsteak line at $17.85 (15%
+allowance, TP-2026-118 nine days past its window) against an $18.90 floor.
+The inventory beat is WOW™ Dreamberry at 6 days of cover on an 8-day life.
+Grower pool share is the *partner-grower share*.
+
+The scenario switches off two page features through `scenario.ui`: the
+Overview's "Below floor, no promo" KPI and callout, and the Override Audit's
+"Below price floor" KPI and "Below floor only" checkbox. Floors still drive the
+Margin Threshold Test and the reprice guardrail. The Overview eyebrow reads
+"Mastronardi Produce" (`copy.overview.eyebrow`). Palette is from the live
+sunsetgrown.com stylesheet: magenta #D41367 in the blue slots, plum built from
+the site's purple accents in the midnight slots. The wordmark is typeset text
+beside a generic sun glyph, not SUNSET's logo artwork. Every customer, contract,
+rep and the persona are fictional. `AS_OF` is 2026-11-23; move it in
+`src/scenarios/sunset/config.ts` before the meeting.
 
 ### Price Simulator (`#/price-simulator`)
 
